@@ -1,0 +1,6 @@
+/home/jonas/dhis2lab/icareetl/api/src/main/java/org/openmrs/module/icareetl/api/dao/IcareETLDao.java
+/home/jonas/dhis2lab/icareetl/api/src/main/java/org/openmrs/module/icareetl/IcareETLConfig.java
+/home/jonas/dhis2lab/icareetl/api/src/main/java/org/openmrs/module/icareetl/api/IcareETLService.java
+/home/jonas/dhis2lab/icareetl/api/src/main/java/org/openmrs/module/icareetl/Item.java
+/home/jonas/dhis2lab/icareetl/api/src/main/java/org/openmrs/module/icareetl/api/impl/IcareETLServiceImpl.java
+/home/jonas/dhis2lab/icareetl/api/src/main/java/org/openmrs/module/icareetl/IcareETLActivator.java
