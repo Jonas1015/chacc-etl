@@ -1,0 +1,5 @@
+{
+  "source_db_name": "openmrs",
+  "destination_db_name": "analysis_db",
+  "destination_db_user": "openmrs-user"
+}

@@ -1,0 +1,9 @@
+{
+  "reports": [
+    {
+      "name": "adult_patients",
+      "type": "denormalized",
+      "source": "derived/adult_females.sql"
+    }
+  ]
+}

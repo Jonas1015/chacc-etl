@@ -11,27 +11,52 @@ package org.openmrs.module.icareetl;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.BaseModuleActivator;
+import org.openmrs.module.mambacore.api.FlattenDatabaseService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class contains the logic that is run every time this module is either started or shutdown
  */
 public class IcareETLActivator extends BaseModuleActivator {
 	
-	private Log log = LogFactory.getLog(this.getClass());
+	private static final Logger log = LoggerFactory.getLogger(IcareETLActivator.class);
 	
-	/**
-	 * @see #started()
-	 */
+	@Override
 	public void started() {
-		log.info("Started IcareETL");
+		log.info("Starting IcareETL Module");
+		
+		Context.getService(FlattenDatabaseService.class).setupEtl();
+		
+		log.info("IcareETL Module started successfully.");
 	}
 	
 	/**
-	 * @see #shutdown()
+	 * @see BaseModuleActivator#stopped()
 	 */
+	@Override
+	public void stopped() {
+		log.info("Stopping IcareETL Module");
+		
+		Context.getService(FlattenDatabaseService.class).shutdownEtlThread();
+		
+		log.info("IcareETL Module stopped.");
+	}
+	
 	public void shutdown() {
-		log.info("Shutdown IcareETL");
+		log.info("Shutdown MambaETL Reference Module");
+	}
+	
+	@Override
+	public void willRefreshContext() {
+		log.info("willRefreshContext ICareETL Reference Module");
+	}
+	
+	@Override
+	public void contextRefreshed() {
+		log.info("log MambaCoreActivator contextRefreshed()");
 	}
 	
 }
