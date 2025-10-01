@@ -1,0 +1,86 @@
+# =========================
+# OpenMRS Module .gitignore
+# =========================
+
+# Maven build output
+target/
+*/target/
+
+# IDE files
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# VS Code
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# Dependency directories (Maven handles these)
+lib/
+**/lib/
+
+# Generated reports
+site/
+coverage/
+jacoco.exec
+
+# Environment & local config (if any)
+.env
+local.properties
+
+# Node (in case of modern UIs or frontend bits inside module)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# OpenMRS Specific Extras
+# =========================
+
+# Ignore generated module omod/jar during build
+omod/*.omod
+omod/*.jar
+api/*.jar
+
+# If module has a bundled openmrs-core clone
+openmrs-core/
+
+# If using liquibase diff output
+liquibase-diff.xml
+liquibase-diff-changeLog.xml
+
+# Ignore output of OpenMRS SDK (if using)
+openmrs-runtime.properties
+openmrs-standalone/
+sdk-logs/
+openmrs-*.zip

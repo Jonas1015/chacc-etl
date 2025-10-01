@@ -1,6 +1,0 @@
-org/openmrs/module/icareetl/api/IcareETLService.class
-org/openmrs/module/icareetl/IcareETLActivator.class
-org/openmrs/module/icareetl/Item.class
-org/openmrs/module/icareetl/api/dao/IcareETLDao.class
-org/openmrs/module/icareetl/IcareETLConfig.class
-org/openmrs/module/icareetl/api/impl/IcareETLServiceImpl.class
