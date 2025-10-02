@@ -1,6 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.openmrs.maven.parents</groupId>
@@ -8,112 +9,45 @@
         <version>1.1.1</version>
     </parent>
 
-	<groupId>org.openmrs.module</groupId>
-	<artifactId>icareetl</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
-	<packaging>pom</packaging>
-	<name>IcareETL</name>
-	<description>This module is intended to flatten tables in icare for easier reporting</description>
+    <groupId>org.openmrs.module</groupId>
+    <artifactId>icare-etl</artifactId>
+    <version>1.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>ICare ETL</name>
+    <description>ICare ETL Module for faster reporting</description>
 
-	<url>https://wiki.openmrs.org/x/FQ4z</url>
+    <url>https://wiki.openmrs.org/x/FQ4z</url>
 
-	<scm>
-		<connection>scm:git:git@github.com:openmrs/openmrs-module-icareetl.git</connection>
-		<developerConnection>scm:git:git@github.com:openmrs/openmrs-module-icareetl.git</developerConnection>
-		<url>https://github.com/openmrs/openmrs-module-icareetl/</url>
-	</scm>
+    <scm>
+        <connection>scm:git:git@github.com:UCSF-IGHS/openmrs-module-mamba-etl.git</connection>
+        <url>https://github.com/UCSF-IGHS/openmrs-module-mamba-etl</url>
+        <developerConnection>scm:git:git@github.com:UCSF-IGHS/openmrs-module-mamba-etl.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
 
-	<modules>
-		<module>api</module>
-		<module>omod</module>
-	</modules>
-
-    <repositories>
-        <repository>
-            <id>openmrs-repo</id>
-            <name>OpenMRS Nexus Repository</name>
-            <url>https://mavenrepo.openmrs.org/public</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>openmrs-repo</id>
-            <name>OpenMRS Nexus Repository</name>
-            <url>https://mavenrepo.openmrs.org/public</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-
-	<build>
-		<pluginManagement>
-			<plugins>
-				<!-- Spotless plugin -->
-				<plugin>
-					<groupId>com.diffplug.spotless</groupId>
-					<artifactId>spotless-maven-plugin</artifactId>
-					<version>2.27.2</version>
-					<configuration>
-						<java>
-							<licenseHeader>
-								<file>${project.basedir}/license-header.txt</file>
-							</licenseHeader>
-							<eclipse>
-								<file>${project.basedir}/OpenMRSFormatter.xml</file>
-							</eclipse>
-							<removeUnusedImports/>
-							<importOrder>
-								<order>javax,java</order>
-							</importOrder>
-						</java>
-						<formats>
-							<format>
-								<includes>
-									<include>**/*.xml</include>
-								</includes>
-								<licenseHeader>
-									<file>${project.basedir}/license-header.txt</file>
-									<delimiter>^(?!&lt;\?xml)</delimiter>
-								</licenseHeader>
-							</format>
-						</formats>
-					</configuration>
-					<executions>
-						<execution>
-							<id>spotless-apply</id>
-							<phase>validate</phase>
-							<goals>
-								<goal>apply</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-	</build>
-
+    <modules>
+        <module>api</module>
+        <module>omod</module>
+    </modules>
 
     <properties>
-        <openmrsPlatformVersion>1.11.6</openmrsPlatformVersion>
+        <openmrsPlatformVersion>2.0.0</openmrsPlatformVersion>
         <webservicesRestVersion>2.21.0</webservicesRestVersion>
         <legacyUIomodVersion>1.8.2</legacyUIomodVersion>
         <javaxAnnotationVersion>1.3.2</javaxAnnotationVersion>
         <mambaETLCoreVersion>1.0.1-SNAPSHOT</mambaETLCoreVersion>
-        <mambaCoreVersion>1.0.1-SNAPSHOT</mambaCoreVersion>
         <junit5Version>5.7.2</junit5Version>
         <junit4Version>4.13.1</junit4Version>
         <MODULE_ID>${project.parent.artifactId}</MODULE_ID>
-        <MODULE_NAME>MambaETL Reference Module</MODULE_NAME>
+        <MODULE_NAME>iCare ETL</MODULE_NAME>
         <MODULE_VERSION>${project.parent.version}</MODULE_VERSION>
         <MODULE_PACKAGE>${project.parent.groupId}.${project.parent.artifactId}</MODULE_PACKAGE>
+
     </properties>
 
     <dependencyManagement>
         <dependencies>
+
             <dependency>
                 <groupId>org.openmrs.api</groupId>
                 <artifactId>openmrs-api</artifactId>
@@ -207,5 +141,373 @@
             <version>9.0.0</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <pluginManagement>
+
+            <plugins>
+
+                <!-- 1. Unpack the dependency jar first -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.2.0</version>
+                    <executions>
+                        <execution>
+                            <id>unpack-scripts</id>
+                            <phase>prepare-package</phase>
+                            <goals>
+                                <goal>unpack</goal>
+                            </goals>
+                            <configuration>
+                                <artifactItems>
+                                    <artifactItem>
+                                        <groupId>org.openmrs.module</groupId>
+                                        <artifactId>mamba-core-api</artifactId>
+                                        <outputDirectory>${project.build.directory}/icare-etl</outputDirectory>
+                                        <includes>_core/**</includes>
+                                    </artifactItem>
+                                </artifactItems>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>Expand resources</id>
+                            <goals>
+                                <goal>unpack-dependencies</goal>
+                            </goals>
+                            <phase>generate-resources</phase>
+                            <configuration>
+                                <includeGroupIds>${project.parent.groupId}</includeGroupIds>
+                                <includeArtifactIds>${project.parent.artifactId}-api</includeArtifactIds>
+                                <includeScope>compile</includeScope>
+                                <includes>**\/*.xml,**\/*.properties</includes>
+                                <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- Step 2 & the last step-->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.2.0</version>
+                    <configuration>
+                        <includeEmptyDirs>true</includeEmptyDirs>
+                    </configuration>
+                    <executions>
+
+                        <!-- 2. Copy contents of the resources directory of the dependency jar to a target location -->
+                        <execution>
+                            <id>copy-scripts</id>
+                            <phase>prepare-package</phase>
+                            <goals>
+                                <goal>copy-resources</goal>
+                            </goals>
+                            <configuration>
+                                <resources>
+                                    <resource>
+                                        <directory>${project.basedir}/src/main/resources/_etl</directory>
+                                        <filtering>true</filtering>
+                                    </resource>
+                                </resources>
+                                <outputDirectory>${project.build.directory}/icare-etl/_etl</outputDirectory>
+                            </configuration>
+                        </execution>
+
+                        <!-- This should execute last - to copy the build script to a location liquibase.xml can access-->
+                        <execution>
+                            <id>copy-final-build-script</id>
+                            <phase>install</phase>
+                            <goals>
+                                <goal>copy-resources</goal>
+                            </goals>
+                            <configuration>
+                                <resources>
+                                    <resource>
+                                        <directory>
+                                            ${project.build.directory}/icare-etl/_core/database/mysql/build
+                                        </directory>
+                                        <filtering>true</filtering>
+                                    </resource>
+                                </resources>
+                                <outputDirectory>${project.parent.basedir}/api/src/main/resources/mamba
+                                </outputDirectory>
+                            </configuration>
+                        </execution>
+
+                    </executions>
+                </plugin>
+
+                <!-- 3. Make the compiler scripts executable & then run the compiler -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>3.0.0</version>
+                    <executions>
+
+                        <execution>
+                            <id>set-executable-permission</id>
+                            <phase>prepare-package</phase>
+                            <goals>
+                                <goal>exec</goal>
+                            </goals>
+                            <configuration>
+                                <executable>/bin/sh</executable>
+                                <arguments>
+                                    <argument>-c</argument>
+                                    <argument>chmod -R +x ${project.build.directory}/icare-etl/_core/compiler</argument>
+                                </arguments>
+                            </configuration>
+                        </execution>
+
+                        <execution>
+                            <id>run-script</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>exec</goal>
+                            </goals>
+                            <configuration>
+                                <executable>/bin/sh</executable>
+                                <workingDirectory>${project.build.directory}/icare-etl/_core/compiler/linux
+                                </workingDirectory>
+                                <arguments>
+
+                                    <!-- the Engine compiler script -->
+                                    <argument>compile.sh</argument>
+
+                                    <!-- The source database (OpenMRS database) -->
+                                    <argument>-d openmrs</argument>
+
+                                    <!-- The target or analysis Database where the ETL data is stored -->
+                                    <argument>-a analysis_db</argument>
+
+                                    <!-- File with a list of all files with stored procedures -->
+                                    <!-- Remove this argument after automating core to auto-read this -->
+                                    <argument>-s ../../database/mysql/sp_makefile</argument>
+
+                                    <!-- a JSON configuration path/folder for all config files for db flattening -->
+                                    <!-- Folder containing configs folder, derived folders and any other ETL related folders -->
+                                    <argument>-t ${project.build.directory}/icare-etl/_etl/config</argument>
+
+                                    <!-- Database Vendor/Engine targeted in this ETL -->
+                                    <argument>-n mysql</argument>
+
+                                    <!-- Set 1 to recompile/build the scripts else 0 - not to. If 1 - don't forget to change the liquibase changeset ID -->
+                                    <argument>-b 1</argument>
+
+                                    <argument/>
+
+                                    <argument/>
+
+                                </arguments>
+                            </configuration>
+                        </execution>
+
+                        <execution>
+                            <id>run-tests-after-install</id>
+                            <phase>install</phase>
+                            <goals>
+                                <goal>exec</goal>
+                            </goals>
+                            <configuration>
+                                <executable>mvn</executable>
+                                <arguments>
+                                    <argument>surefire:test</argument>
+                                </arguments>
+                            </configuration>
+                        </execution>
+                    </executions>
+
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.1</version>
+                    <configuration>
+                        <source>8</source>
+                        <target>8</target>
+                        <encoding>UTF-8</encoding>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>default-testCompile</id>
+                            <phase>test</phase>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>2.5.3</version>
+                    <configuration>
+                        <!--
+                        <preparationGoals>clean install</preparationGoals>
+                        <autoVersionSubmodules>true</autoVersionSubmodules>
+                        <useReleaseProfile>false</useReleaseProfile>
+                        <arguments>-Prelease</arguments>
+                        -->
+                        <autoVersionSubmodules>true</autoVersionSubmodules>
+                        <tagNameFormat>v@{project.version}</tagNameFormat>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>2.4</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>test-jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <configuration>
+                        <includes>
+                            <include>**/*Test.java</include>
+                        </includes>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.openmrs.maven.plugins</groupId>
+                    <artifactId>maven-openmrs-plugin</artifactId>
+                    <version>1.0.1</version>
+                    <extensions>true</extensions>
+                    <executions>
+                        <execution>
+                            <id>init</id>
+                            <phase>initialize</phase>
+                            <goals>
+                                <goal>initialize-module</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>pack</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>package-module</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>2.1</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.openmrs.maven.plugins</groupId>
+                    <artifactId>openmrs-dependency-maven-plugin</artifactId>
+                    <version>1.0.0</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>retrieve-versions</goal>
+                                <goal>create-versions</goal>
+                                <goal>compare-versions</goal>
+                                <goal>attach-versions</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>3.1.0</version>
+                    <executions>
+                        <execution>
+                            <phase>generate-test-resources</phase>
+                            <goals>
+                                <goal>parse-version</goal>
+                            </goals>
+                            <configuration>
+                                <propertyPrefix>omrsVersion</propertyPrefix>
+                                <versionString>${openmrsPlatformVersion}</versionString>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+            </plugins>
+
+        </pluginManagement>
+    </build>
+
+    <repositories>
+
+        <repository>
+            <id>openmrs-repo</id>
+            <name>OpenMRS Nexus Repository</name>
+            <url>http://mavenrepo.openmrs.org/nexus/content/repositories/public</url>
+        </repository>
+
+        <repository>
+            <id>central</id>
+            <name>Maven Repository Switchboard</name>
+            <layout>default</layout>
+            <url>http://repo1.maven.org/maven2</url>
+        </repository>
+
+    </repositories>
+
+    <pluginRepositories>
+
+        <pluginRepository>
+            <id>openmrs-repo</id>
+            <name>OpenMRS Nexus Repository</name>
+            <url>http://mavenrepo.openmrs.org/nexus/content/repositories/public</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </pluginRepository>
+
+    </pluginRepositories>
+
+    <distributionManagement>
+        <repository>
+            <id>openmrs-repo-modules</id>
+            <name>Modules</name>
+            <url>http://mavenrepo.openmrs.org/nexus/content/repositories/modules/</url>
+        </repository>
+        <snapshotRepository>
+            <id>openmrs-repo-snapshots</id>
+            <name>OpenMRS Snapshots</name>
+            <url>http://mavenrepo.openmrs.org/nexus/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <developers>
+        <developer>
+            <id>OpenMRS-MambaETL-MakSPH</id>
+            <name>Arthur D. Mugume</name>
+            <organization>MakSPH</organization>
+            <organizationUrl>https://mets.or.ug</organizationUrl>
+        </developer>
+        <developer>
+            <id>OpenMRS-MambaETL-UCSF</id>
+            <name>Laureen G. Omare</name>
+            <organization>UCSF</organization>
+            <organizationUrl>http://ucglobalprograms.org/kenya</organizationUrl>
+        </developer>
+        <developer>
+            <id>OpenMRS-MambaETL-UoN</id>
+            <name>Amos Laboso</name>
+            <organization>UoN</organization>
+            <organizationUrl>https://www.uonbi.ac.ke</organizationUrl>
+        </developer>
+    </developers>
 
 </project>

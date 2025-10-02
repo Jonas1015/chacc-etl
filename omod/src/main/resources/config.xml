@@ -5,7 +5,7 @@
     <id>${project.parent.artifactId}</id>
     <name>${project.parent.name}</name>
     <version>${project.parent.version}</version>
-    <package>org.openmrs.module.mambaetl</package>
+    <package>org.openmrs.module.icareetl</package>
     <author>Jonas Mwambimbi</author>
     <description>${project.parent.description}</description>
 
@@ -30,9 +30,5 @@
         <lang>es</lang>
         <file>messages_es.properties</file>
     </messages>
-
-    <require_modules>
-        <require_module version="1.0.0-SNAPSHOT">com.icare.module.icare</require_module>
-    </require_modules>
 
 </module>

@@ -41,5 +41,10 @@
       <option name="name" value="OpenMRS Repository" />
       <option name="url" value="https://mavenrepo.openmrs.org/public" />
     </remote-repository>
+    <remote-repository>
+      <option name="id" value="central" />
+      <option name="name" value="Maven Repository Switchboard" />
+      <option name="url" value="http://repo1.maven.org/maven2" />
+    </remote-repository>
   </component>
 </project>

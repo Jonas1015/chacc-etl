@@ -3,14 +3,12 @@
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
  * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
  * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
- *
+ * <p>
  * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
  * graphic logo is a trademark of OpenMRS Inc.
  */
 package org.openmrs.module.icareetl;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.BaseModuleActivator;
 import org.openmrs.module.mambacore.api.FlattenDatabaseService;
@@ -26,37 +24,30 @@ public class IcareETLActivator extends BaseModuleActivator {
 	
 	@Override
 	public void started() {
-		log.info("Starting IcareETL Module");
-		
+		log.info("Started IcareETL Module");
 		Context.getService(FlattenDatabaseService.class).setupEtl();
-		
-		log.info("IcareETL Module started successfully.");
+		super.started();
 	}
 	
-	/**
-	 * @see BaseModuleActivator#stopped()
-	 */
 	@Override
 	public void stopped() {
-		log.info("Stopping IcareETL Module");
+		log.info("Stopped IcareETL Module");
 		
 		Context.getService(FlattenDatabaseService.class).shutdownEtlThread();
-		
-		log.info("IcareETL Module stopped.");
+		super.stopped();
 	}
 	
 	public void shutdown() {
-		log.info("Shutdown MambaETL Reference Module");
+		log.info("Shutdown IcareETL Module");
 	}
 	
 	@Override
 	public void willRefreshContext() {
-		log.info("willRefreshContext ICareETL Reference Module");
+		log.info("willRefreshContext IcareETL Module");
 	}
 	
 	@Override
 	public void contextRefreshed() {
-		log.info("log MambaCoreActivator contextRefreshed()");
+		log.info("log IcareCoreActivator contextRefreshed()");
 	}
-	
 }

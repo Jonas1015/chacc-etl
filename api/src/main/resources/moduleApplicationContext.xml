@@ -22,37 +22,4 @@
   		    http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
   		    http://www.springframework.org/schema/util
   		    http://www.springframework.org/schema/util/spring-util-3.0.xsd">
-
-    <context:component-scan base-package="org.openmrs.module.icareetl" />
-
-    <!-- Wraps IcareETLService methods in DB transactions and OpenMRS interceptors,
-    which set audit info like dateCreated, changedBy, etc.-->
-    <bean id="icareetl.IcareETLService"
-            class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
-        <property name="transactionManager">
-            <ref bean="transactionManager" />
-        </property>
-        <property name="target">
-            <bean class="org.openmrs.module.icareetl.api.impl.IcareETLServiceImpl">
-                <property name="dao" ref="icareetl.IcareETLDao" />
-            </bean>
-        </property>
-        <property name="preInterceptors">
-            <ref bean="serviceInterceptors" />
-        </property>
-        <property name="transactionAttributeSource">
-            <ref bean="transactionAttributeSource" />
-        </property>
-    </bean>
-
-    <!-- Adds IcareETLService to OpenMRS context so it can be accessed
-    calling Context.getService(IcareETLService.class) -->
-    <bean parent="serviceContext">
-        <property name="moduleService">
-            <list>
-                <value>org.openmrs.module.icareetl.api.IcareETLService</value>
-                <ref bean="icareetl.IcareETLService" />
-            </list>
-        </property>
-    </bean>
 </beans>
