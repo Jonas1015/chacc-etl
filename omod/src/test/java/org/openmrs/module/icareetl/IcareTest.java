@@ -38,7 +38,7 @@ public class IcareTest {
             connection = DriverManager.getConnection(jdbcUrl, username, password);
 
             try (Statement statement = connection.createStatement()) {
-                int affectedRows = statement.executeUpdate("CREATE SCHEMA analysis_db");
+                int affectedRows = statement.executeUpdate("CREATE SCHEMA icare_analytics");
                 assertEquals("Unexpected number of affected rows.", 0, affectedRows);
             }
 
@@ -57,7 +57,7 @@ public class IcareTest {
 	@Test
     public void shouldConfirmAnalysisDatabaseExists() {
         try (Statement statement = connection.createStatement()) {
-            try (ResultSet resultSet = statement.executeQuery("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'analysis_db'")) {
+            try (ResultSet resultSet = statement.executeQuery("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'icare_analytics'")) {
                 assertNotNull("ResultSet is null", resultSet);
             }
         } catch (SQLException e) {
