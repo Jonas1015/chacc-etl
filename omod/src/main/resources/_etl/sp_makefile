@@ -12,3 +12,4 @@
 ##### A single SP that CALLs all SPs inside the derived & base folders ######
 #############################################################################
 sp_icare_data_processing_etl.sql
+000_init_custom_tables.sql
