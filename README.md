@@ -1,92 +1,291 @@
-# RUNNING ICARE ETL
+# OpenMRS Database Migration Pipeline with Luigi
 
-Running ICare ETL module make sure to specify the following:
+A comprehensive ETL (Extract, Transform, Load) pipeline built with Luigi for migrating OpenMRS data to analytics database with flattened tables.
 
-Run `docker exec -it [CONTAINER NAME] bash`
-
-Get into `.OpenMRS` folder the print `openmrs-runtime.properties` by running the following command:
+## Project Structure
 
 ```
-cd .OpenMRS
-
-# Show openmrs-runtime.properties
-cat openmrs-runtime.properties
+luigi-etl-project/
+├── config/                 # Configuration files
+│   ├── __init__.py
+│   ├── database_config.py  # Source and target database settings
+│   └── luigi_config.py     # Luigi scheduler settings
+├── tasks/                  # Luigi task definitions
+│   ├── __init__.py
+│   ├── base_tasks.py       # Base task classes
+│   ├── schema_tasks.py     # Database schema creation tasks
+│   ├── extract_tasks.py    # Data extraction from source DB
+│   ├── load_tasks.py       # Data loading to target DB
+│   └── flattened_table_tasks.py  # Flattened table creation tasks
+├── utils/                  # Utility functions
+│   ├── __init__.py
+│   ├── db_utils.py         # Database utilities & connection pooling
+│   ├── stored_procedures.py # Stored procedures for efficient processing
+│   └── logging_utils.py    # Logging configuration
+├── pipelines/              # Pipeline orchestrations
+│   ├── __init__.py
+│   └── main_pipeline.py    # Main database migration pipeline
+├── scripts/                # Executable scripts
+│   └── run_pipeline.py     # Pipeline runner script
+├── data/                   # Temporary data files
+├── logs/                   # Log files
+├── requirements.txt        # Python dependencies
+├── luigi.cfg              # Luigi configuration
+├── .env.example           # Environment variables template
+└── README.md              # This file
 ```
 
-Copy this and store somewhere else for you will use them later:
+## Features
 
+- **Database-to-Database Migration**: Migrate data from OpenMRS database to analytics database
+- **Stored Procedures**: Efficient data processing using MySQL stored procedures
+- **Incremental Updates**: Support for incremental data updates with watermarks
+- **Flattened Tables**: Automatic creation of denormalized tables for analytics
+- **Modular Design**: Separate tasks for schema creation, extraction, loading, and flattening
+- **Error Handling**: Retry logic and comprehensive error handling
+- **Logging**: Structured logging with configurable levels
+- **Configuration**: Environment-based configuration management
+- **Scheduling**: Cron-friendly incremental updates
 
-Now create `openmrs-runtime.properties` volume in docker compose to be able to expose these settings.
+## Installation
 
-Once done, paste the openmrs-runtime.properties copied from the container to this new file.
+1. **Clone or set up the project**:
+   ```bash
+   cd /path/to/your/project
+   ```
 
-Then update by appending this and set as you wish:
+2. **Create virtual environment**:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
 
-```
- mambaetl.analysis.db.driver=com.mysql.cj.jdbc.Driver
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
- mambaetl.analysis.db.url=jdbc\:mysql\://localhost\:3306/icare_analytics?useSSL\=false&autoReconnect\=true
+   **Note**: If you encounter `pkg_resources` errors, reinstall setuptools:
+   ```bash
+   pip install --upgrade setuptools
+   ```
 
- mambaetl.analysis.db.username=db_user
+4. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
 
- mambaetl.analysis.db.password=password
+## Configuration
 
- mambaetl.analysis.db.openmrs_database=openmrs
+### Environment Variables
 
- mambaetl.analysis.db.etl_database=icare_analytics
- 
- mambaetl.analysis.locale=en
- 
- mambaetl.analysis.columns=100
- 
- mambaetl.analysis.incremental_mode=1
- 
- mambaetl.analysis.automated_flattening=1
- 
- mambaetl.analysis.etl_interval=180
-```
+Copy `.env.example` to `.env` and configure:
 
-Then restart the iCare container.
+```bash
+# Source Database Configuration (OpenMRS database)
+SOURCE_DB_HOST=localhost
+SOURCE_DB_USER=openmrs
+SOURCE_DB_PASSWORD=your_openmrs_password
+SOURCE_DB_NAME=openmrs
 
-Now, login into the database container (MySQL) and allow user to be able to create and work on the icare_analytics database accordingly:
-
-Get mysql command line:
-
-```
-docker exec -it [CONTAINER NAME] mysql -u root -p
-```
-
-Enter password then run the following query:
-
-
-```
-GRANT ALL PRIVILEGES ON *.* TO 'db_user'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-```
-
-once done, verify that privileges have been granted:
-```
-SHOW GRANTS FOR 'db_user'@'%';
-```
-
-
-Now deploy iCare ETL built module accordingly.
-
-To build iCare ETL module clone the repository
-
-```
-git clone https://github.com/udsm-dhis2-lab/icare-etl
+# Target Database Configuration (Analytics database)
+TARGET_DB_HOST=localhost
+TARGET_DB_USER=analytics
+TARGET_DB_PASSWORD=your_analytics_password
+TARGET_DB_NAME=icare_analytics
 ```
 
-and clone mamba core:
+### Database Setup
+
+1. **Source Database**: Ensure your OpenMRS MySQL/MariaDB database is running and accessible
+2. **Target Database**: Create an empty analytics database (the pipeline will create all tables)
+
+### Scheduler Setup
+
+The pipeline uses **local scheduler** by default for development/testing. For production deployments:
+
+1. **Uncomment** the scheduler settings in `luigi.cfg`:
+   ```ini
+   [core]
+   default-scheduler-host=localhost
+   default-scheduler-port=8082
+   ```
+
+2. **Start the central scheduler**:
+   ```bash
+   # Ensure logs directory exists
+   mkdir -p logs
+
+   # Start the scheduler
+   luigid --background --logdir logs/
+   ```
+
+3. **Run pipelines** with `--central-scheduler` flag for distributed execution
+
+## Usage
+
+### Full Migration (Initial Setup)
+
+```bash
+python scripts/run_pipeline.py --full-refresh
 ```
-git clone https://github.com/openmrs/openmrs-module-mamba-core
+
+### Incremental Migration (Daily Updates)
+
+```bash
+python scripts/run_pipeline.py --incremental
 ```
 
-Make sure to have installed `maven` in your machine.
+### Scheduled Incremental Migration (Cron Jobs)
 
-Build Mamba core first then icare-etl. 
+```bash
+python scripts/run_pipeline.py --scheduled
+```
 
-get omod file from `icare-etl/omod/target/icare-etl-1.0.1-SNAPSHOT.omod` then deploy it on your running OpenMRS instance.
+### Custom Incremental with Specific Date
 
-Enjoy
+```bash
+python scripts/run_pipeline.py --incremental --last-updated 2024-01-01
+```
+
+### Advanced Options
+
+```bash
+# Use central scheduler (requires luigid daemon running)
+python scripts/run_pipeline.py \
+  --incremental \
+  --central-scheduler \
+  --workers 4
+
+# Force local scheduler (default behavior)
+python scripts/run_pipeline.py \
+  --incremental \
+  --workers 4
+```
+
+## Pipeline Flow
+
+1. **Schema Creation Phase**:
+   - Create target database tables
+   - Create stored procedures for efficient processing
+   - Initialize ETL metadata tracking
+
+2. **Extract Phase**:
+   - Extract patient data from OpenMRS database
+   - Extract encounter data with full context
+   - Extract observation data with concept details
+   - Extract location/facility information
+
+3. **Load Phase**:
+   - Load patients into analytics database (incremental or full)
+   - Load encounters with provider and location details
+   - Load observations with efficient bulk operations
+   - Load location data with hierarchy information
+
+4. **Flattened Tables Phase**:
+   - Create `flattened_patient_encounters` table using stored procedures
+   - Create `flattened_observations` table with all related data
+   - Generate patient summary statistics
+   - Generate observation summary analytics
+   - Create location/facility summary reports
+
+## Output Tables
+
+### Core Tables
+- `patients`: Patient demographic and registration data
+- `encounters`: Encounter records with provider and location details
+- `observations`: Observation data with concept and value information
+- `locations`: Facility and location hierarchy data
+- `etl_metadata`: Pipeline execution tracking and statistics
+- `etl_watermarks`: Incremental update tracking
+
+### Flattened Tables
+- `flattened_patient_encounters`: Patients joined with their encounters and providers
+- `flattened_observations`: Observations with full patient, encounter, and concept context
+- `patient_summary`: Aggregated patient statistics and visit patterns
+- `observation_summary`: Concept-based observation analytics and distributions
+- `location_summary`: Facility utilization and patient service statistics
+
+## Logging
+
+Logs are written to `logs/luigi.log` with the following levels:
+- INFO: General pipeline progress
+- WARNING: Non-critical issues
+- ERROR: Failures and exceptions
+
+## Monitoring
+
+### Luigi Central Scheduler
+
+For production use, run the Luigi central scheduler:
+
+```bash
+luigid --background --logdir logs/
+```
+
+Then run pipelines without `--local-scheduler`.
+
+### Task Visualization
+
+Visit `http://localhost:8082` to see the task graph and monitor progress.
+
+## Development
+
+### Adding New Tasks
+
+1. Create task class inheriting from `BaseETLTask`, `SourceDatabaseTask`, or `TargetDatabaseTask`
+2. Define `requires()`, `output()`, and `run()` methods
+3. Add to `tasks/__init__.py`
+4. Update pipeline in `pipelines/main_pipeline.py`
+
+### Testing
+
+```bash
+# Run specific task
+python -c "from tasks.extract_tasks import ExtractPatientsTask; print(ExtractPatientsTask().run())"
+```
+
+### Scheduling
+
+Add to crontab for daily incremental updates:
+
+```bash
+# Daily incremental migration at 2 AM
+0 2 * * * cd /path/to/project && python scripts/run_pipeline.py --scheduled
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Source Database Connection Failed**:
+   - Check SOURCE_DB_HOST, SOURCE_DB_USER, SOURCE_DB_PASSWORD in .env
+   - Ensure OpenMRS database is running and accessible
+
+2. **Target Database Connection Failed**:
+   - Check TARGET_DB_HOST, TARGET_DB_USER, TARGET_DB_PASSWORD in .env
+   - Ensure analytics database exists and user has permissions
+
+3. **Stored Procedure Errors**:
+   - Ensure target database user has CREATE ROUTINE permissions
+   - Check MySQL version compatibility
+
+4. **Permission Errors**:
+   - Ensure write permissions for data/, logs/ directories
+   - Ensure database user has SELECT on source and CREATE/INSERT on target
+
+### Debug Mode
+
+Set `LUIGI_LOG_LEVEL=DEBUG` in .env for verbose logging.
+
+## Contributing
+
+1. Follow the existing code structure
+2. Add appropriate logging
+3. Include docstrings for new functions/classes
+4. Test your changes
+
+## License
+
+This project is open source. Please check the license file for details.
