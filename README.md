@@ -1,6 +1,6 @@
-# OpenMRS Database Migration Pipeline with Luigi
+# Database ETL Pipeline with Luigi
 
-A comprehensive ETL (Extract, Transform, Load) pipeline built with Luigi for migrating OpenMRS data to analytics database with flattened tables.
+A comprehensive ETL (Extract, Transform, Load) pipeline built with Luigi for migrating data between databases with flattened tables and analytics.
 
 ## Project Structure
 
@@ -37,8 +37,8 @@ luigi-etl-project/
 
 ## Features
 
-- **Database-to-Database Migration**: Migrate data from OpenMRS database to analytics database
-- **Stored Procedures**: Efficient data processing using MySQL stored procedures
+- **Database-to-Database Migration**: Migrate data between databases with configurable schemas
+- **Stored Procedures**: Efficient data processing using database stored procedures
 - **Incremental Updates**: Support for incremental data updates with watermarks
 - **Flattened Tables**: Automatic creation of denormalized tables for analytics
 - **Modular Design**: Separate tasks for schema creation, extraction, loading, and flattening
@@ -46,6 +46,22 @@ luigi-etl-project/
 - **Logging**: Structured logging with configurable levels
 - **Configuration**: Environment-based configuration management
 - **Scheduling**: Cron-friendly incremental updates
+- **Web UI**: Graphical interface for running pipelines
+- **SQL Editor**: Built-in SQL query editor with folder organization for managing database scripts
+- **JSON Editor**: Configuration editor for pipeline task definitions with folder support
+- **File Upload**: Upload SQL and JSON files with custom naming and folder organization
+- **Task Visualization**: Integration with Luigi's web-based task visualizer
+
+## Upcoming Features
+
+- **PostgreSQL Support**: Extend database compatibility beyond MySQL/MariaDB
+- **Advanced Analytics**: Built-in data quality checks and profiling
+- **Cloud Integration**: Support for cloud databases (AWS RDS, Google Cloud SQL, Azure Database)
+- **API Endpoints**: REST API for programmatic pipeline execution
+- **Monitoring Dashboard**: Real-time pipeline monitoring and alerting
+- **Data Validation**: Automated data validation and reconciliation
+- **Multi-Source Support**: Extract from multiple heterogeneous data sources
+- **Performance Optimization**: Query optimization and parallel processing improvements
 
 ## Installation
 
@@ -162,7 +178,39 @@ python scripts/run_pipeline.py \
 python scripts/run_pipeline.py \
   --incremental \
   --workers 4
+
+# Force rerun all tasks
+python scripts/run_pipeline.py \
+  --full-refresh \
+  --force
 ```
+
+## Web UI
+
+For a graphical interface with modern styling, run the web UI:
+
+```bash
+python web_ui.py
+```
+
+Then open http://localhost:5000 in your browser. The web interface provides:
+- **Interactive buttons** for all pipeline modes
+- **Real-time status** display with execution results
+- **Luigi Visualizer link** to monitor task graphs (requires central scheduler)
+- **SQL Editor** for managing database query files with folder organization
+- **JSON Editor** for configuring pipeline tasks with folder support
+- **File Upload** for adding new SQL and JSON files with custom naming and folder creation
+- **Clean, professional UI** with responsive design
+
+Features:
+- Full Refresh
+- Incremental Update
+- Scheduled Run
+- Force Full Refresh
+- Luigi Task Visualizer (links to http://localhost:8082)
+- SQL Query Editor
+- JSON Configuration Editor
+- File Upload System
 
 ## Pipeline Flow
 

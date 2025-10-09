@@ -12,13 +12,18 @@ from datetime import datetime
 from config import TARGET_DB_CONFIG, SOURCE_DB_CONFIG, DATA_DIR
 
 def load_task_definitions():
-    """Load task definitions from JSON configuration."""
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'task_definitions.json')
-    if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            return config.get('tasks', {}), config.get('task_dependencies', {})
-    return {}, {}
+    """Load task definitions from JSON configuration files in config/tasks/ folder."""
+    tasks_dir = os.path.join(os.path.dirname(__file__), '..', 'config', 'tasks')
+    tasks = {}
+    if os.path.exists(tasks_dir):
+        for file in sorted(os.listdir(tasks_dir)):
+            if file.endswith('.json'):
+                file_path = os.path.join(tasks_dir, file)
+                with open(file_path, 'r') as f:
+                    config = json.load(f)
+                    if 'tasks' in config:
+                        tasks.update(config['tasks'])
+    return tasks, {}
 
 def update_task_status(conn, task_name, status, error_message=None):
     """Update task status in etl_metadata table."""
@@ -34,7 +39,8 @@ def update_task_status(conn, task_name, status, error_message=None):
         """
         execute_query(conn, sql, (task_name, status, error_message, datetime.now(), datetime.now()))
     except Exception as e:
-        print(f"Could not update task status for {task_name}: {e}")
+        if "doesn't exist" not in str(e):
+            print(f"Could not update task status for {task_name}: {e}")
 
 def get_sql_content(task_config):
     """Get SQL content - either from direct string or file path."""
@@ -82,15 +88,25 @@ def create_dynamic_tasks():
                         self.update_status('running')
 
                         sql = self.sql
-                        with self.get_db_connection() as conn:
-                            execute_query(conn, sql)
+                        print(f"[{self.__class__.__name__}] Executing SQL: {sql}")
+                        if 'CREATE DATABASE' in sql.upper():
+                            print(f"[{self.__class__.__name__}] Using MySQL system connection for database creation")
+                            from utils.db_utils import get_mysql_db_connection
+                            with get_mysql_db_connection() as conn:
+                                execute_query(conn, sql)
+                        else:
+                            print(f"[{self.__class__.__name__}] Using target database connection")
+                            with self.get_db_connection() as conn:
+                                execute_query(conn, sql)
 
+                        print(f"[{self.__class__.__name__}] SQL executed successfully")
                         with self.output().open('w') as f:
                             f.write(f'{self.__class__.__name__} completed successfully\n')
 
                         self.update_status('completed')
                         log_task_complete(self)
                     except Exception as e:
+                        print(f"[{self.__class__.__name__}] ERROR: {str(e)}")
                         self.update_status('failed', str(e))
                         log_task_error(self, e)
                         raise
@@ -127,10 +143,11 @@ def create_dynamic_tasks():
                             sql = re.sub(r'DELIMITER\s+//', '', sql)
                             sql = re.sub(r'DELIMITER\s+;', '', sql)
                             statements = sql.split('//')
-                            for statement in statements:
-                                statement = statement.strip()
-                                if statement:
-                                    conn.query(statement)
+                            with conn.cursor() as cursor:
+                                for statement in statements:
+                                    statement = statement.strip()
+                                    if statement:
+                                        cursor.execute(statement)
                             conn.commit()
 
                         with self.output().open('w') as f:
@@ -208,6 +225,11 @@ def create_dynamic_tasks():
                                 data_tuples.append((row,))
 
                         with self.get_db_connection() as target_conn:
+                            if not self.incremental:
+                                print(f"[{self.__class__.__name__}] Truncating table {target_table}")
+                                with target_conn.cursor() as cursor:
+                                    cursor.execute(f"TRUNCATE TABLE {target_table}")
+                            print(f"[{self.__class__.__name__}] Inserting {len(data_tuples)} records into {target_table}")
                             with target_conn.cursor() as cursor:
                                 cursor.executemany(sql, data_tuples)
                             target_conn.commit()
@@ -354,24 +376,35 @@ def create_dynamic_tasks():
                 def run(self):
                     try:
                         log_task_start(self)
+                        print(f"[{self.__class__.__name__}] Starting summary table creation")
 
                         sql = getattr(self, 'sql', self.task_config.get('sql', ''))
+                        print(f"[{self.__class__.__name__}] Executing SQL: {sql[:100]}...")
                         with self.get_db_connection() as conn:
-                            execute_query(conn, sql)
+                            statements = [stmt.strip() for stmt in sql.split(';') if stmt.strip()]
+                            for stmt in statements:
+                                if stmt:
+                                    print(f"[{self.__class__.__name__}] Executing statement: {stmt[:50]}...")
+                                    execute_query(conn, stmt)
+                            print(f"[{self.__class__.__name__}] Table creation completed")
 
                             indexes = self.task_config.get('indexes', [])
-                            for index_sql in indexes:
+                            for i, index_sql in enumerate(indexes):
+                                print(f"[{self.__class__.__name__}] Creating index {i+1}/{len(indexes)}")
                                 try:
                                     execute_query(conn, index_sql)
                                 except Exception as e:
                                     if "Duplicate key name" not in str(e):
                                         raise
+                            print(f"[{self.__class__.__name__}] All indexes created")
 
                         with self.output().open('w') as f:
                             f.write(f'{self.__class__.__name__} completed successfully\n')
 
+                        print(f"[{self.__class__.__name__}] Task completed successfully")
                         log_task_complete(self)
                     except Exception as e:
+                        print(f"[{self.__class__.__name__}] ERROR: {str(e)}")
                         log_task_error(self, e)
                         raise
 

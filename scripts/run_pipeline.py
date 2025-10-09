@@ -19,6 +19,9 @@ Examples:
 
     # Custom incremental with specific last update timestamp
     python scripts/run_pipeline.py --incremental --last-updated 2024-01-01
+
+    # Force full refresh (rerun all tasks)
+    python scripts/run_pipeline.py --full-refresh --force
 """
 
 import argparse
@@ -50,6 +53,8 @@ def main():
                        help='Use local scheduler instead of central scheduler (default: True)')
     parser.add_argument('--central-scheduler', action='store_true',
                        help='Force use of central scheduler (overrides local-scheduler)')
+    parser.add_argument('--force', action='store_true',
+                       help='Force all tasks to run even if outputs exist')
 
     args = parser.parse_args()
 
@@ -69,6 +74,13 @@ def main():
 
     if args.scheduled and not last_updated:
         last_updated = (datetime.now() - timedelta(days=1)).date()
+
+    if args.force:
+        import shutil
+        from config import DATA_DIR
+        if os.path.exists(DATA_DIR):
+            shutil.rmtree(DATA_DIR)
+        os.makedirs(DATA_DIR, exist_ok=True)
 
     try:
         if args.full_refresh:

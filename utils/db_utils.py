@@ -32,9 +32,12 @@ class DatabaseConnectionPool:
             conn.close()
             logger.debug("Closed excess database connection")
 
-# Connection pools for source and target databases
 _source_connection_pool = DatabaseConnectionPool(SOURCE_DB_CONFIG)
 _target_connection_pool = DatabaseConnectionPool(TARGET_DB_CONFIG)
+
+_mysql_config = TARGET_DB_CONFIG.copy()
+_mysql_config['database'] = 'mysql'
+_mysql_connection_pool = DatabaseConnectionPool(_mysql_config)
 
 @contextmanager
 def get_source_db_connection():
@@ -57,6 +60,17 @@ def get_target_db_connection():
         yield conn
     finally:
         _target_connection_pool.return_connection(conn)
+
+@contextmanager
+def get_mysql_db_connection():
+    """
+    Context manager for MySQL system database connections (used for creating databases).
+    """
+    conn = _mysql_connection_pool.get_connection()
+    try:
+        yield conn
+    finally:
+        _mysql_connection_pool.return_connection(conn)
 
 
 def execute_query(conn, query, params=None, fetch=False):

@@ -6,3 +6,4 @@ python-decouple>=3.0
 cryptography>=3.0
 setuptools>=65.0.0
 sqlalchemy>=1.4.0
+flask>=2.0.0
