@@ -1,147 +1,134 @@
-# Database ETL Pipeline with Luigi
+Yes, the document has already been provided in the requested Markdown format.
 
-A comprehensive ETL (Extract, Transform, Load) pipeline built with Luigi for migrating data between databases with flattened tables and analytics.
+Here is the complete **ChaCC ETL Pipeline with Luigi: User Guide** in Markdown, including the license information:
 
-## Project Structure
+-----
+
+# ChaCC ETL Pipeline with Luigi: User Guide
+
+The ChaCC ETL Pipeline is a modern, modular system built with **Luigi** for migrating and transforming data between databases. It focuses on creating **flattened tables** and providing robust **analytics capabilities**.
+
+-----
+
+## 🔑 Key Features
+
+| Category | Features |
+| :--- | :--- |
+| **ETL & Data** | **Database Migration**, **Stored Procedures** for efficient processing, **Incremental Updates** with watermarks, **Flattened Tables** for analytics. |
+| **Design** | **Modular Design** (separate tasks for Extract, Transform, Load), **Error Handling** (with retry logic), **Structured Logging**, and **Configuration** via environment variables. |
+| **Interface** | **Web UI** for management, **SQL Editor** & **JSON Editor** for configurations, **File Uploads**, **Task Visualization** (via Luigi), **Dark Mode** support. |
+| **Operations** | **Scheduling** (Cron-friendly updates), **Luigi Central Scheduler** support for distributed execution. |
+
+-----
+
+## 🛠 Project Structure
+
+The project is organized to separate configuration, task definitions, utilities, and execution scripts for maximum clarity and maintainability.
 
 ```
-luigi-etl-project/
-├── config/                 # Configuration files
-│   ├── __init__.py
-│   ├── database_config.py  # Source and target database settings
-│   └── luigi_config.py     # Luigi scheduler settings
-├── tasks/                  # Luigi task definitions
-│   ├── __init__.py
-│   ├── base_tasks.py       # Base task classes
-│   ├── schema_tasks.py     # Database schema creation tasks
-│   ├── extract_tasks.py    # Data extraction from source DB
-│   ├── load_tasks.py       # Data loading to target DB
-│   └── flattened_table_tasks.py  # Flattened table creation tasks
-├── utils/                  # Utility functions
-│   ├── __init__.py
-│   ├── db_utils.py         # Database utilities & connection pooling
-│   ├── stored_procedures.py # Stored procedures for efficient processing
-│   └── logging_utils.py    # Logging configuration
-├── pipelines/              # Pipeline orchestrations
-│   ├── __init__.py
-│   └── main_pipeline.py    # Main database migration pipeline
-├── scripts/                # Executable scripts
-│   └── run_pipeline.py     # Pipeline runner script
-├── data/                   # Temporary data files
+chacc-etl-project/
+├── config/                 # Database and Luigi configuration settings
+├── tasks/                  # Luigi Task definitions (Extraction, Loading, Flattening, Schema)
+├── utils/                  # Reusable code for DB connections, logging, and stored procedures
+├── pipelines/              # Orchestration: Main pipeline definition
+├── scripts/                # Executable runner scripts
+├── data/                   # Temporary data storage
 ├── logs/                   # Log files
+├── luigi.cfg               # Luigi scheduler configuration
 ├── requirements.txt        # Python dependencies
-├── luigi.cfg              # Luigi configuration
-├── .env.example           # Environment variables template
-└── README.md              # This file
+└── .env.example            # Environment variables template
 ```
 
-## Features
+-----
 
-- **Database-to-Database Migration**: Migrate data between databases with configurable schemas
-- **Stored Procedures**: Efficient data processing using database stored procedures
-- **Incremental Updates**: Support for incremental data updates with watermarks
-- **Flattened Tables**: Automatic creation of denormalized tables for analytics
-- **Modular Design**: Separate tasks for schema creation, extraction, loading, and flattening
-- **Error Handling**: Retry logic and comprehensive error handling
-- **Logging**: Structured logging with configurable levels
-- **Configuration**: Environment-based configuration management
-- **Scheduling**: Cron-friendly incremental updates
-- **Web UI**: Graphical interface for running pipelines
-- **SQL Editor**: Built-in SQL query editor with folder organization for managing database scripts
-- **JSON Editor**: Configuration editor for pipeline task definitions with folder support
-- **File Upload**: Upload SQL and JSON files with custom naming and folder organization
-- **Task Visualization**: Integration with Luigi's web-based task visualizer
+## ⚙️ Installation & Setup
 
-## Upcoming Features
+Follow these steps to get the ChaCC ETL Pipeline running on your system.
 
-- **PostgreSQL Support**: Extend database compatibility beyond MySQL/MariaDB
-- **Advanced Analytics**: Built-in data quality checks and profiling
-- **Cloud Integration**: Support for cloud databases (AWS RDS, Google Cloud SQL, Azure Database)
-- **API Endpoints**: REST API for programmatic pipeline execution
-- **Monitoring Dashboard**: Real-time pipeline monitoring and alerting
-- **Data Validation**: Automated data validation and reconciliation
-- **Multi-Source Support**: Extract from multiple heterogeneous data sources
-- **Performance Optimization**: Query optimization and parallel processing improvements
-
-## Installation
-
-1. **Clone or set up the project**:
-   ```bash
-   cd /path/to/your/project
-   ```
-
-2. **Create virtual environment**:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   **Note**: If you encounter `pkg_resources` errors, reinstall setuptools:
-   ```bash
-   pip install --upgrade setuptools
-   ```
-
-4. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
-
-## Configuration
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
+### 1\. Clone & Environment Setup
 
 ```bash
-# Source Database Configuration (Source database)
-SOURCE_DB_HOST=localhost
-SOURCE_DB_USER=openmrs
-SOURCE_DB_PASSWORD=your_openmrs_password
-SOURCE_DB_NAME=openmrs
+# Navigate to your preferred project directory
+cd /path/to/your/project
 
-# Target Database Configuration (Analytics database)
-TARGET_DB_HOST=localhost
-TARGET_DB_USER=analytics
-TARGET_DB_PASSWORD=your_analytics_password
-TARGET_DB_NAME=icare_analytics
+# Create a virtual environment
+python -m venv .venv
+
+# Activate the virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-### Database Setup
+### 2\. Install Dependencies
 
-1. **Source Database**: Ensure your Source MySQL/MariaDB database is running and accessible
-2. **Target Database**: Create an empty analytics database (the pipeline will create all tables)
+```bash
+pip install -r requirements.txt
+```
 
-### Scheduler Setup
+> **Troubleshooting Note**: If you encounter `pkg_resources` errors, run:
+> `pip install --upgrade setuptools`
 
-The pipeline uses **local scheduler** by default for development/testing. For production deployments:
+### 3\. Configure Environment Variables
 
-1. **Uncomment** the scheduler settings in `luigi.cfg`:
-   ```ini
-   [core]
-   default-scheduler-host=localhost
-   default-scheduler-port=8082
-   ```
+Create your `.env` file from the example and fill in your database credentials and other settings.
 
-2. **Start the central scheduler**:
-   ```bash
-   # Ensure logs directory exists
-   mkdir -p logs
+```bash
+cp .env.example .env
+# Now, edit .env with your specific database and Luigi settings.
+```
 
-   # Start the scheduler
-   luigid --background --logdir logs/
-   ```
+### 4\. Database Setup
 
-3. **Run pipelines** with `--central-scheduler` flag for distributed execution
+  * **Source Database**: Ensure your Source MySQL/MariaDB database is running and accessible.
+  * **Target Database (Analytics)**: Create an empty database on your target server. The pipeline will automatically create all necessary tables, stored procedures, and metadata.
 
-## Usage
+-----
+
+## ⚙️ Configuration Details
+
+### Environment Variables (`.env` file)
+
+The `.env` file holds all sensitive connection details and operational parameters:
+
+  * **Source Database**: Connection details (`HOST`, `USER`, `PASSWORD`, `DATABASE`)
+  * **Target Database**: Connection details for the analytics database
+  * **Luigi Settings**: Scheduler, worker, and logging configurations
+  * **Task Settings**: Retry logic and error handling parameters
+
+### Luigi Scheduler Setup
+
+For development, the pipeline uses the **local scheduler** by default. For production and the Web UI's full features, the **central scheduler** is required.
+
+#### Starting the Central Scheduler
+
+1.  **Uncomment** the scheduler settings in `luigi.cfg` to point to the central host/port:
+
+    ```ini
+    [core]
+    default-scheduler-host=localhost
+    default-scheduler-port=8082
+    ```
+
+2.  **Start the scheduler daemon**:
+
+    ```bash
+    # Ensure logs directory exists
+    mkdir -p logs
+
+    # Start the central scheduler in the background
+    luigid --background --logdir logs/
+    ```
+
+3.  **Monitor**: Visit `http://localhost:8082` to view the Luigi Task Visualization web interface.
+
+-----
+
+## 🏃 Usage & Execution
+
+Use the `run_pipeline.py` script to execute the ETL process.
 
 ### Full Migration (Initial Setup)
+
+Wipes existing target data and reloads everything.
 
 ```bash
 python scripts/run_pipeline.py --full-refresh
@@ -149,191 +136,129 @@ python scripts/run_pipeline.py --full-refresh
 
 ### Incremental Migration (Daily Updates)
 
+Runs updates based on the last recorded watermark.
+
 ```bash
 python scripts/run_pipeline.py --incremental
 ```
 
-### Scheduled Incremental Migration (Cron Jobs)
+### Custom Incremental Update
 
-```bash
-python scripts/run_pipeline.py --scheduled
-```
-
-### Custom Incremental with Specific Date
+Run an incremental update starting from a specific date.
 
 ```bash
 python scripts/run_pipeline.py --incremental --last-updated 2024-01-01
 ```
 
-### Advanced Options
+### Scheduled Migration (For Cron Jobs)
+
+A dedicated mode for scheduled runs.
 
 ```bash
-# Use central scheduler (requires luigid daemon running)
-python scripts/run_pipeline.py \
-  --incremental \
-  --central-scheduler \
-  --workers 4
-
-# Force local scheduler (default behavior)
-python scripts/run_pipeline.py \
-  --incremental \
-  --workers 4
-
-# Force rerun all tasks
-python scripts/run_pipeline.py \
-  --full-refresh \
-  --force
+python scripts/run_pipeline.py --scheduled
 ```
 
-## Web UI
+### Advanced Options
 
-For a graphical interface with modern styling, run the web UI:
+| Flag | Purpose | Example |
+| :--- | :--- | :--- |
+| `--central-scheduler` | Connects to the running `luigid` daemon for distributed execution. | `--central-scheduler --workers 4` |
+| `--workers N` | Specifies the number of concurrent workers. | `--workers 4` |
+| `--force` | Forces a complete rerun of all tasks, ignoring existing target files/flags. | `--full-refresh --force` |
+
+-----
+
+## 💻 Web User Interface
+
+The Web UI provides a clean, professional interface for managing and running the pipelines.
+
+### Starting the Web UI
 
 ```bash
 python web_ui.py
 ```
 
-Then open http://localhost:5000 in your browser. The web interface provides:
-- **Interactive buttons** for all pipeline modes
-- **Real-time status** display with execution results
-- **Luigi Visualizer link** to monitor task graphs (requires central scheduler)
-- **SQL Editor** for managing database query files with folder organization
-- **JSON Editor** for configuring pipeline tasks with folder support
-- **File Upload** for adding new SQL and JSON files with custom naming and folder creation
-- **Clean, professional UI** with responsive design
+Open your browser to **`http://localhost:5000`**.
 
-Features:
-- Full Refresh
-- Incremental Update
-- Scheduled Run
-- Force Full Refresh
-- Luigi Task Visualizer (links to http://localhost:8082)
-- SQL Query Editor
-- JSON Configuration Editor
-- File Upload System
+### Web UI Features
 
-## Pipeline Flow
+  * **Interactive Buttons**: Run full migration, incremental, or scheduled modes with a single click.
+  * **Real-time Status**: View execution results and pipeline progress.
+  * **Luigi Visualizer Link**: Direct link to the task graph (requires central scheduler).
+  * **SQL/JSON Editors**: Built-in editors for managing query files and task configuration files.
+  * **File Upload**: Easily upload new SQL or JSON files for your pipeline.
+  * **Dark/Light Mode**: Toggle for comfortable viewing.
 
-1. **Schema Creation Phase**:
-   - Create target database tables
-   - Create stored procedures for efficient processing
-   - Initialize ETL metadata tracking
+-----
 
-2. **Extract Phase**:
-   - Extract patient data from Source database
-   - Extract encounter data with full context
-   - Extract observation data with concept details
-   - Extract location/facility information
+## 📈 Output Tables
 
-3. **Load Phase**:
-   - Load patients into analytics database (incremental or full)
-   - Load encounters with provider and location details
-   - Load observations with efficient bulk operations
-   - Load location data with hierarchy information
+The pipeline creates a balanced set of normalized and denormalized tables in your target analytics database.
 
-4. **Flattened Tables Phase**:
-   - Create `flattened_patient_encounters` table using stored procedures
-   - Create `flattened_observations` table with all related data
-   - Generate patient summary statistics
-   - Generate observation summary analytics
-   - Create location/facility summary reports
+### Core Tables (Normalized)
 
-## Output Tables
+These store the clean, relational data and tracking metadata:
 
-### Core Tables
-- `patients`: Patient demographic and registration data
-- `encounters`: Encounter records with provider and location details
-- `observations`: Observation data with concept and value information
-- `locations`: Facility and location hierarchy data
-- `etl_metadata`: Pipeline execution tracking and statistics
-- `etl_watermarks`: Incremental update tracking
+  * `patients`, `encounters`, `observations`, `locations`
+  * `etl_metadata`, `etl_watermarks` (for pipeline tracking)
 
-### Flattened Tables
-- `flattened_patient_encounters`: Patients joined with their encounters and providers
-- `flattened_observations`: Observations with full patient, encounter, and concept context
-- `patient_summary`: Aggregated patient statistics and visit patterns
-- `observation_summary`: Concept-based observation analytics and distributions
-- `location_summary`: Facility utilization and patient service statistics
+### Flattened Tables (Denormalized & Summary)
 
-## Logging
+Optimized for analytics and reporting:
 
-Logs are written to `logs/luigi.log` with the following levels:
-- INFO: General pipeline progress
-- WARNING: Non-critical issues
-- ERROR: Failures and exceptions
+  * `flattened_patient_encounters`, `flattened_observations`
+  * `patient_summary`, `observation_summary`, `location_summary` (Aggregated reports)
 
-## Monitoring
+-----
 
-### Luigi Central Scheduler
+## 🐛 Troubleshooting
 
-For production use, run the Luigi central scheduler:
+### Common Connection Issues
 
-```bash
-luigid --background --logdir logs/
-```
+| Issue | Solution |
+| :--- | :--- |
+| **Source DB Connection Failed** | Check `SOURCE_DB_*` settings in `.env`. Ensure the database is running and network accessible. |
+| **Target DB Connection Failed** | Check `TARGET_DB_*` settings in `.env`. Ensure the analytics database exists and user has permissions. |
+| **Stored Procedure Errors** | Confirm the target database user has `CREATE ROUTINE` permissions and check MySQL version compatibility. |
 
-Then run pipelines without `--local-scheduler`.
+### Debugging
 
-### Task Visualization
+For more detailed logs, set the environment variable:
+`LUIGI_LOG_LEVEL=DEBUG` in your `.env` file.
 
-Visit `http://localhost:8082` to see the task graph and monitor progress.
+-----
 
-## Development
+## 👩‍💻 Development
 
 ### Adding New Tasks
 
-1. Create task class inheriting from `BaseETLTask`, `SourceDatabaseTask`, or `TargetDatabaseTask`
-2. Define `requires()`, `output()`, and `run()` methods
-3. Add to `tasks/__init__.py`
-4. Update pipeline in `pipelines/main_pipeline.py`
+1.  In the `tasks/` directory, create a new task class inheriting from a base class like `BaseETLTask`.
+2.  Define the three core Luigi methods: `requires()`, `output()`, and `run()`.
+3.  Integrate the new task into the pipeline definition in `pipelines/main_pipeline.py`.
 
-### Testing
+### Scheduling with Cron
 
-```bash
-# Run specific task
-python -c "from tasks.extract_tasks import ExtractPatientsTask; print(ExtractPatientsTask().run())"
-```
-
-### Scheduling
-
-Add to crontab for daily incremental updates:
+To automate daily incremental updates (e.g., at 2 AM):
 
 ```bash
 # Daily incremental migration at 2 AM
 0 2 * * * cd /path/to/project && python scripts/run_pipeline.py --scheduled
 ```
 
-## Troubleshooting
+-----
 
-### Common Issues
+## 🔮 Upcoming Features
 
-1. **Source Database Connection Failed**:
-   - Check SOURCE_DB_HOST, SOURCE_DB_USER, SOURCE_DB_PASSWORD in .env
-   - Ensure Source database is running and accessible
+The project is continually evolving with plans for:
 
-2. **Target Database Connection Failed**:
-   - Check TARGET_DB_HOST, TARGET_DB_USER, TARGET_DB_PASSWORD in .env
-   - Ensure analytics database exists and user has permissions
+  * **PostgreSQL Support**
+  * **Advanced Analytics** (Data quality checks and profiling)
+  * **API Endpoints** (REST API for programmatic execution)
+  * **Monitoring Dashboard** (Real-time alerting)
+  * **Multi-Source Support** (Heterogeneous data source extraction)
 
-3. **Stored Procedure Errors**:
-   - Ensure target database user has CREATE ROUTINE permissions
-   - Check MySQL version compatibility
+-----
 
-4. **Permission Errors**:
-   - Ensure write permissions for data/, logs/ directories
-   - Ensure database user has SELECT on source and CREATE/INSERT on target
+## 📜 License
 
-### Debug Mode
-
-Set `LUIGI_LOG_LEVEL=DEBUG` in .env for verbose logging.
-
-## Contributing
-
-1. Follow the existing code structure
-2. Add appropriate logging
-3. Include docstrings for new functions/classes
-4. Test your changes
-
-## License
-
-This project is licensed under the Apache License 2.0 — see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the **Apache License 2.0** — see the [LICENSE](./LICENSE) file for details.
