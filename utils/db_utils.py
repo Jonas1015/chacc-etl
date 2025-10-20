@@ -1,3 +1,7 @@
+# Copyright 2025 Jonas G Mwambimbi
+# Licensed under the Apache License, Version 2.0 (see LICENSE file for details)
+
+
 import pymysql
 import logging
 from contextlib import contextmanager

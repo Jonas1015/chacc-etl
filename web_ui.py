@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+# Copyright 2025 Jonas G Mwambimbi
+# Licensed under the Apache License, Version 2.0 (see LICENSE file for details)
+
+
 """
 Web UI for OpenMRS Database Migration Pipeline
 

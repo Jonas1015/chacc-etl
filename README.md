@@ -336,4 +336,4 @@ Set `LUIGI_LOG_LEVEL=DEBUG` in .env for verbose logging.
 
 ## License
 
-This project is open source. Please check the license file for details.
+This project is licensed under the Apache License 2.0 — see the [LICENSE](./LICENSE) file for details.
