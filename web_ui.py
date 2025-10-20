@@ -3,7 +3,7 @@
 
 
 """
-Web UI for OpenMRS Database Migration Pipeline
+Web UI for Source Database Migration Pipeline
 
 Provides a simple web interface to run the ETL pipeline with buttons.
 """

@@ -8,28 +8,27 @@
 import luigi
 from datetime import datetime
 from tasks.dynamic_task_factory_new import create_dynamic_tasks
+from tasks.schema_tasks import CreateTargetDatabaseTask, CreateETLMetadataTableTask
 
 _dynamic_tasks = create_dynamic_tasks()
 
 for task_name, task_class in _dynamic_tasks.items():
     globals()[task_name] = task_class
-from tasks.flattened_table_tasks import CreatePatientSummaryTableTask
 from utils import setup_logging
 
 setup_logging()
 
 class DatabaseMigrationPipeline(luigi.Task):
     """
-    Main ETL pipeline for migrating OpenMRS data to analytics database with flattened tables.
+    Main ETL pipeline for migrating Source data to analytics database with flattened tables.
     """
     incremental = luigi.BoolParameter(default=False)
     last_updated = luigi.DateParameter(default=None)
 
     def requires(self):
         return [
-            CreatePatientSummaryTableTask(),
-            CreateObservationSummaryTableTask(),
-            CreateLocationSummaryTableTask()
+            CreateTargetDatabaseTask(),
+            CreateETLMetadataTableTask()
         ]
 
     def output(self):

@@ -9,7 +9,7 @@
 """
 Database Migration Pipeline Runner Script
 
-This script runs the Luigi ETL pipeline for migrating OpenMRS data to analytics database with flattened tables.
+This script runs the Luigi ETL pipeline for migrating Source data to analytics database with flattened tables.
 
 Usage:
     python scripts/run_pipeline.py [--incremental] [--full-refresh] [--scheduled]
@@ -45,7 +45,7 @@ import luigi
 def main():
     setup_logging()
 
-    parser = argparse.ArgumentParser(description='Run Database Migration Pipeline for OpenMRS Analytics')
+    parser = argparse.ArgumentParser(description='Run Database Migration Pipeline for Source Analytics')
     parser.add_argument('--incremental', action='store_true',
                        help='Run incremental migration (only process changed data)')
     parser.add_argument('--full-refresh', action='store_true',

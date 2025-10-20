@@ -12,7 +12,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 <head>
     <title>SQL Editor - Database ETL Pipeline</title>
     <link rel="stylesheet" href="{{ url_for('static', filename="css/styles.css") }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename="css/sql_editor.css") }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/editor.css') }}">
 </head>
 
 <body>
@@ -32,29 +32,73 @@ Licensed under the Apache License, Version 2.0 (the "License");
         <div class="editor-layout">
             <div class="file-list">
                 <h3>SQL Files</h3>
-                <div class="file-tree">
-                    {% for folder, files in file_tree.items() %}
-                    <div class="folder-item">
-                        <div class="folder-header">
-                            {{ folder if folder != 'root' else 'Root Directory' }}
-                        </div>
-                        <ul class="file-list">
-                            {% for file in files %}
-                            <li class="file-item {{ 'active' if file == selected_file else '' }}">
-                                <a href="?file={{ file }}" class="file-link">{{ file.split('/')[-1] }}</a>
-                                <form method="post" class="delete-form"
-                                    onsubmit="return confirm('Delete {{ file.split('/')[-1] }}?')">
-                                    <input type="hidden" name="delete" value="{{ file }}">
-                                    <button type="submit" class="delete-btn" title="Delete file">Delete</button>
-                                </form>
-                            </li>
-                            {% endfor %}
-                        </ul>
+
+                <!-- Search and Controls -->
+                <div class="file-controls">
+                    <div class="search-container">
+                        <input type="text" id="file-search" placeholder="Search files..." class="search-input">
+                        <span class="search-icon"></span>
                     </div>
-                    {% endfor %}
+                    <div class="display-controls">
+                        <label for="page-size">Show:</label>
+                        <select id="page-size" class="page-size-select">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span id="file-count" class="file-count">0 files</span>
+                    </div>
+                </div>
+
+                <!-- File Table -->
+                <div class="file-table-container">
+                    <table class="file-table" id="file-table">
+                        <thead>
+                            <tr>
+                                <th class="file-name-header">File Name</th>
+                                <th class="file-folder-header">Folder</th>
+                                <th class="file-actions-header">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="file-table-body">
+                            {% for folder, files in file_tree.items() %}
+                            {% for file in files %}
+                            <tr class="file-row {{ 'active' if file == selected_file else '' }}" data-file="{{ file }}" data-folder="{{ folder }}">
+                                <td class="file-name-cell">
+                                    <a href="?file={{ file }}" class="file-link">{{ file.split('/')[-1] }}</a>
+                                </td>
+                                <td class="file-folder-cell">{{ folder if folder != 'root' else 'Root Directory' }}</td>
+                                <td class="file-actions-cell">
+                                    <button type="button" class="delete-btn" title="Delete file" onclick="confirmDelete('{{ file.split('/')[-1] }}', '{{ file }}')">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination-container" id="pagination-container">
+                    <button class="pagination-btn" id="prev-btn" disabled>Previous</button>
+                    <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
+                    <button class="pagination-btn" id="next-btn" disabled>Next</button>
                 </div>
             </div>
             <div class="editor">
+                <button class="expand-btn" id="expand-btn" title="Expand Editor">
+                    <!-- License: CC Attribution. Made by zwicon: https://www.zwicon.com/ -->
+                    <svg fill="#000000" width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M4,7.5 C4,7.77614237 3.77614237,8 3.5,8 C3.22385763,8 3,7.77614237 3,7.5 L3,5.5 C3,4.11928813 4.11928813,3 5.5,3 L7.5,3 C7.77614237,3 8,3.22385763 8,3.5 C8,3.77614237 7.77614237,4 7.5,4 L5.5,4 C4.67157288,4 4,4.67157288 4,5.5 L4,7.5 Z M16.5,4 C16.2238576,4 16,3.77614237 16,3.5 C16,3.22385763 16.2238576,3 16.5,3 L18.5,3 C19.8807119,3 21,4.11928813 21,5.5 L21,7.5 C21,7.77614237 20.7761424,8 20.5,8 C20.2238576,8 20,7.77614237 20,7.5 L20,5.5 C20,4.67157288 19.3284271,4 18.5,4 L16.5,4 Z M20,16.5 C20,16.2238576 20.2238576,16 20.5,16 C20.7761424,16 21,16.2238576 21,16.5 L21,18.5 C21,19.8807119 19.8807119,21 18.5,21 L16.5,21 C16.2238576,21 16,20.7761424 16,20.5 C16,20.2238576 16.2238576,20 16.5,20 L18.5,20 C19.3284271,20 20,19.3284271 20,18.5 L20,16.5 Z M7.5,20 C7.77614237,20 8,20.2238576 8,20.5 C8,20.7761424 7.77614237,21 7.5,21 L5.5,21 C4.11928813,21 3,19.8807119 3,18.5 L3,16.5 C3,16.2238576 3.22385763,16 3.5,16 C3.77614237,16 4,16.2238576 4,16.5 L4,18.5 C4,19.3284271 4.67157288,20 5.5,20 L7.5,20 Z" />
+                    </svg>
+                </button>
+
                 {% if message %}
                 <div class="message {{ 'success' if 'successfully' in message else 'error' }}">
                     {{ message }}

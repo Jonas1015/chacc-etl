@@ -1,0 +1,488 @@
+/*
+Copyright 2025 Jonas G Mwambimbi
+Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+*/
+
+.nav {
+    margin-bottom: 20px;
+}
+
+.nav a {
+    color: #007bff;
+    text-decoration: none;
+    margin-right: 20px;
+}
+
+.nav a:hover {
+    text-decoration: underline;
+}
+
+.editor-layout {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 20px;
+    position: relative;
+    transition: grid-template-columns 0.3s ease;
+}
+
+.file-list {
+    grid-column: 1;
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.file-list.collapsed {
+    grid-column: 1;
+    width: 50px;
+    overflow: hidden;
+}
+
+.file-list.collapsed .file-controls,
+.file-list.collapsed .file-table-container,
+.file-list.collapsed .pagination-container {
+    display: none;
+}
+
+.file-list.collapsed .file-list h3 {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    margin: 20px 0;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.file-list h3 {
+    margin-top: 0;
+    color: #495057;
+}
+
+/* File Controls */
+.file-controls {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.search-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.search-container {
+    width: 87%;
+    margin-bottom: 15px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 35px 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--button-bg);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.display-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+.display-controls label {
+    font-size: 14px;
+    color: var(--text-color);
+    margin: 0;
+    white-space: nowrap;
+}
+
+.page-size-select {
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 14px;
+    cursor: pointer;
+    min-width: 60px;
+}
+
+.page-size-select:focus {
+    outline: none;
+    border-color: var(--button-bg);
+}
+
+.file-count {
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* File Table */
+.file-table-container {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--card-bg);
+}
+
+.file-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.file-table thead {
+    background-color: var(--header-border);
+}
+
+.file-table th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.file-name-header {
+    width: 55%;
+}
+
+.file-folder-header {
+    width: 30%;
+}
+
+.file-actions-header {
+    width: 15%;
+    text-align: center;
+}
+
+.file-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+.file-table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.file-table tbody tr.active {
+    background-color: rgba(0, 123, 255, 0.1);
+    border-left: 3px solid var(--button-bg);
+}
+
+.file-table td {
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+
+.file-name-cell {
+    font-weight: 500;
+}
+
+.file-link {
+    color: var(--button-bg);
+    text-decoration: none;
+    display: block;
+    transition: color 0.2s;
+}
+
+.file-link:hover {
+    color: var(--button-hover);
+    text-decoration: underline;
+}
+
+.file-folder-cell {
+    color: #6c757d;
+    font-size: 13px;
+}
+
+.file-actions-cell {
+    text-align: center;
+}
+
+.delete-form {
+    margin: 0;
+    display: inline;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+.delete-btn:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+/* Pagination */
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    padding: 10px 0;
+    gap: 15px;
+}
+
+.pagination-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    min-width: 80px;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: var(--button-bg);
+    color: white;
+    border-color: var(--button-bg);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.editor {
+    grid-column: 2;
+    position: relative;
+    transition: all 0.3s ease;
+    width: auto;
+    padding-right: 20px;
+}
+
+.expand-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--button-bg);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    z-index: 10;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    visibility: hidden;
+    display: none;
+}
+
+.editor:has(form):hover .expand-btn {
+    opacity: 1;
+    visibility: visible;
+    display: block;
+}
+
+.expand-btn:hover {
+    background: var(--button-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.expand-btn.expanded {
+    background: var(--button-hover);
+    color: white;
+}
+
+.expand-btn.expanded:hover {
+    background: var(--button-bg);
+    color: white;
+}
+
+.editor textarea {
+    width: 100%;
+    height: 600px;
+    font-family: 'SFMono-Regular', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    resize: vertical;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    box-sizing: border-box;
+}
+
+.editor textarea:focus {
+    outline: none;
+    border-color: var(--button-bg);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+[data-theme="dark"] .editor textarea {
+    background-color: #2d3748;
+    color: #e9ecef;
+}
+
+.message {
+    margin: 15px 0;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.save-btn {
+    background-color: var(--button-bg);
+    color: white;
+    border: 1px solid var(--button-bg);
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.save-btn:hover {
+    background-color: var(--button-hover);
+    border-color: var(--button-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* Delete Modal Styles */
+.delete-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.delete-modal-content {
+    position: relative;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    width: 90%;
+    border: 1px solid var(--border-color);
+}
+
+.delete-modal-header {
+    padding: 20px 20px 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.delete-modal-header h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.delete-modal-body {
+    padding: 20px;
+}
+
+.delete-modal-body p {
+    margin: 0 0 10px 0;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+.delete-warning {
+    color: #dc3545 !important;
+    font-weight: 500;
+}
+
+.delete-modal-footer {
+    padding: 15px 20px 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.delete-modal-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.cancel-btn {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.cancel-btn:hover {
+    background-color: var(--border-color);
+}
+
+.confirm-btn {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.confirm-btn:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}

@@ -99,7 +99,7 @@ luigi-etl-project/
 Copy `.env.example` to `.env` and configure:
 
 ```bash
-# Source Database Configuration (OpenMRS database)
+# Source Database Configuration (Source database)
 SOURCE_DB_HOST=localhost
 SOURCE_DB_USER=openmrs
 SOURCE_DB_PASSWORD=your_openmrs_password
@@ -114,7 +114,7 @@ TARGET_DB_NAME=icare_analytics
 
 ### Database Setup
 
-1. **Source Database**: Ensure your OpenMRS MySQL/MariaDB database is running and accessible
+1. **Source Database**: Ensure your Source MySQL/MariaDB database is running and accessible
 2. **Target Database**: Create an empty analytics database (the pipeline will create all tables)
 
 ### Scheduler Setup
@@ -220,7 +220,7 @@ Features:
    - Initialize ETL metadata tracking
 
 2. **Extract Phase**:
-   - Extract patient data from OpenMRS database
+   - Extract patient data from Source database
    - Extract encounter data with full context
    - Extract observation data with concept details
    - Extract location/facility information
@@ -309,7 +309,7 @@ Add to crontab for daily incremental updates:
 
 1. **Source Database Connection Failed**:
    - Check SOURCE_DB_HOST, SOURCE_DB_USER, SOURCE_DB_PASSWORD in .env
-   - Ensure OpenMRS database is running and accessible
+   - Ensure Source database is running and accessible
 
 2. **Target Database Connection Failed**:
    - Check TARGET_DB_HOST, TARGET_DB_USER, TARGET_DB_PASSWORD in .env
