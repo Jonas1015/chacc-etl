@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Upload Files - Database ETL Pipeline</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_template.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="theme-toggle">
+                <button onclick="toggleTheme()" class="theme-btn" id="theme-toggle">🌙 Dark Mode</button>
+            </div>
+            <h1>Upload Files</h1>
+        </div>
+        <div class="nav">
+            <a href="/">← Back to Pipeline</a>
+            <a href="/sql-editor">SQL Editor</a>
+            <a href="/json-editor">JSON Editor</a>
+        </div>
+
+        {% if message %}
+        <div class="message {{ 'success' if 'successfully' in message else 'error' }}">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <div class="upload-form">
+            <form method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="type">File Type:</label>
+                    <select name="type" id="type" required onchange="updateFolderPlaceholder()">
+                        <option value="">Select type...</option>
+                        <option value="sql">SQL File</option>
+                        <option value="json">JSON Configuration</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filename">Custom Filename (optional):</label>
+                    <input type="text" name="filename" id="filename" placeholder="e.g., my_query.sql or config.json">
+                    <small style="color: #6c757d; display: block; margin-top: 5px;">Leave empty to use original
+                        filename. Extension will be added automatically.</small>
+                </div>
+                <div class="form-group">
+                    <label for="folder">Folder Path (optional):</label>
+                    <input type="text" name="folder" id="folder" placeholder="e.g., custom/extract or my_configs">
+                    <small style="color: #6c757d; display: block; margin-top: 5px;">Subfolder within sql/ or config/.
+                        Will be created if it doesn't exist.</small>
+                </div>
+                <div class="form-group">
+                    <label for="file">Select File:</label>
+                    <input type="file" name="file" id="file" accept=".sql,.json" required>
+                </div>
+                <button type="submit" class="upload-btn">Upload File</button>
+            </form>
+        </div>
+
+        <script>
+            function updateFolderPlaceholder() {
+                const typeSelect = document.getElementById('type');
+                const folderInput = document.getElementById('folder');
+                const selectedType = typeSelect.value;
+
+                if (selectedType === 'sql') {
+                    folderInput.placeholder = 'e.g., extract, custom/queries, analytics';
+                } else if (selectedType === 'json') {
+                    folderInput.placeholder = 'e.g., tasks, custom/configs, workflows';
+                } else {
+                    folderInput.placeholder = 'e.g., custom/folder';
+                }
+            }
+        </script>
+
+        <div>
+            <h3>File Upload Guidelines:</h3>
+            <ul>
+                <li><strong>Custom Filenames:</strong> Specify your own filename or leave empty to use the uploaded
+                    file's name</li>
+                <li><strong>Folder Organization:</strong> Create subfolders to categorize your files (e.g.,
+                    <code>analytics/queries</code>)</li>
+                <li><strong>SQL Files:</strong> Stored in <code>sql/</code> directory with custom folder structure</li>
+                <li><strong>JSON Files:</strong> Stored in <code>config/</code> directory with custom folder structure
+                </li>
+                <li><strong>Extensions:</strong> Automatically added if not included in custom filename</li>
+                <li><strong>Overwrite:</strong> Existing files with the same name will be overwritten</li>
+            </ul>
+        </div>
+    </div>
+</body>
+
+<script src="{{ url_for('static', filename='js/script.js')}}"></script>
+
+</html>

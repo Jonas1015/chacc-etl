@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Database ETL Pipeline</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="theme-toggle">
+                <button onclick="toggleTheme()" class="theme-btn" id="theme-toggle">🌙 Dark Mode</button>
+            </div>
+            <h1>Database ETL Pipeline</h1>
+            <p>Enterprise-grade data migration and analytics pipeline built with Luigi</p>
+        </div>
+
+        <div class="tool-buttons"
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 40px;">
+            <a href="/sql-editor" class="button tool-btn" style="text-decoration: none; text-align: center;">
+                SQL Editor
+            </a>
+            <a href="/json-editor" class="button tool-btn" style="text-decoration: none; text-align: center;">
+                JSON Editor
+            </a>
+            <a href="/upload" class="button secondary tool-btn" style="text-decoration: none; text-align: center;">
+                Upload Files
+            </a>
+            <a href="http://localhost:8082" target="_blank" class="button secondary tool-btn"
+                style="text-decoration: none; text-align: center;">
+                Luigi Visualizer
+            </a>
+        </div>
+
+        <form method="post">
+            <div class="button-grid">
+                <button class="button" name="action" value="full_refresh" type="submit">Full Refresh</button>
+                <button class="button" name="action" value="incremental" type="submit">Incremental Update</button>
+                <button class="button" name="action" value="scheduled" type="submit">Scheduled Run</button>
+                <button class="button danger" name="action" value="force_refresh" type="submit">Force Full
+                    Refresh</button>
+                <a href="http://localhost:8082" target="_blank" class="button secondary"
+                    style="text-decoration: none; text-align: center; line-height: 1.2;">Luigi Visualizer</a>
+            </div>
+        </form>
+
+        {% if status %}
+        <div
+            class="status {{ 'success' if 'successfully' in status.lower() else 'error' if 'error' in status.lower() or 'failed' in status.lower() else 'info' }}">
+            <h3>Execution Status</h3>
+            <pre>{{ status }}</pre>
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <p>Open-source Simple ETL Tool -> <a href="https://github.com/jonas1015/" target="_blank">&copy;Developer</a></p>
+        </div>
+    </div>
+</body>
+
+<script src="{{ url_for('static', filename='js/script.js')}}"></script>
+
+</html>

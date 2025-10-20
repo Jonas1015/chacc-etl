@@ -1,0 +1,111 @@
+.nav {
+    margin-bottom: 20px;
+}
+
+.nav a {
+    color: #007bff;
+    text-decoration: none;
+    margin-right: 20px;
+}
+
+.nav a:hover {
+    text-decoration: underline;
+}
+
+.editor-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.file-list {
+    flex: 0 0 250px;
+}
+
+.file-list h3 {
+    margin-top: 0;
+    color: #495057;
+}
+
+.file-list ul {
+    list-style: none;
+    padding: 0;
+}
+
+.file-list li {
+    margin-bottom: 5px;
+}
+
+.file-list a {
+    color: #007bff;
+    text-decoration: none;
+    display: block;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.file-list a:hover,
+.file-list a.active {
+    background-color: #e9ecef;
+}
+
+.editor {
+    flex: 1;
+}
+
+.editor textarea {
+    width: 100%;
+    height: 600px;
+    font-family: 'SFMono-Regular', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    resize: vertical;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.editor textarea:focus {
+    outline: none;
+    border-color: var(--button-bg);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+[data-theme="dark"] .editor textarea {
+    background-color: #2d3748;
+    color: #e9ecef;
+}
+
+.message {
+    margin: 15px 0;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.save-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.save-btn:hover {
+    background-color: #218838;
+}

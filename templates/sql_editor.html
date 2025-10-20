@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>SQL Editor - Database ETL Pipeline</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename="css/styles.css") }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename="css/sql_editor.css") }}">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="theme-toggle">
+                <button onclick="toggleTheme()" class="theme-btn" id="theme-toggle">🌙 Dark Mode</button>
+            </div>
+            <h1>SQL Editor</h1>
+        </div>
+        <div class="nav">
+            <a href="/">← Back to Pipeline</a>
+            <a href="/json-editor">JSON Editor</a>
+            <a href="/upload">Upload Files</a>
+        </div>
+
+        <div class="editor-layout">
+            <div class="file-list">
+                <h3>SQL Files</h3>
+                <div class="file-tree">
+                    {% for folder, files in file_tree.items() %}
+                    <div class="folder-item">
+                        <div class="folder-header">
+                            {{ folder if folder != 'root' else 'Root Directory' }}
+                        </div>
+                        <ul class="file-list">
+                            {% for file in files %}
+                            <li class="file-item {{ 'active' if file == selected_file else '' }}">
+                                <a href="?file={{ file }}" class="file-link">{{ file.split('/')[-1] }}</a>
+                                <form method="post" class="delete-form"
+                                    onsubmit="return confirm('Delete {{ file.split('/')[-1] }}?')">
+                                    <input type="hidden" name="delete" value="{{ file }}">
+                                    <button type="submit" class="delete-btn" title="Delete file">Delete</button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="editor">
+                {% if message %}
+                <div class="message {{ 'success' if 'successfully' in message else 'error' }}">
+                    {{ message }}
+                </div>
+                {% endif %}
+
+                {% if selected_file %}
+                <form method="post">
+                    <h3>Editing: {{ selected_file }}</h3>
+                    <textarea name="content" placeholder="Enter SQL content here...">{{ content }}</textarea>
+                    <br><br>
+                    <button type="submit" class="save-btn">Save Changes</button>
+                </form>
+                {% else %}
+                <p>Select a SQL file from the list to edit.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+
+<script src="{{ url_for('static', filename='js/script.js')}}"></script>
+
+</html>
