@@ -6,18 +6,14 @@ def setup_logging():
     """
     Setup logging configuration for the ETL pipeline.
     """
-    # Ensure logs directory exists
     os.makedirs(LOGS_DIR, exist_ok=True)
 
-    # Create logger
     logger = logging.getLogger()
     logger.setLevel(getattr(logging, LOG_LEVEL))
 
-    # Remove existing handlers
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
 
-    # Create formatters
     file_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
@@ -25,17 +21,14 @@ def setup_logging():
         '%(levelname)s - %(name)s - %(message)s'
     )
 
-    # File handler
     file_handler = logging.FileHandler(LOG_PATH)
     file_handler.setLevel(getattr(logging, LOG_LEVEL))
     file_handler.setFormatter(file_formatter)
 
-    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(console_formatter)
 
-    # Add handlers
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 

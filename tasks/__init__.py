@@ -1,21 +1,24 @@
-# Try to import Luigi-dependent modules
+# Copyright 2025 Jonas G Mwambimbi
+# Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+
 try:
     from .base_tasks import BaseETLTask, SourceDatabaseTask, TargetDatabaseTask
-    from .dynamic_task_factory_new import create_dynamic_tasks
+    from .dynamic_task_factory import create_dynamic_tasks
 
-    # Create all tasks dynamically from JSON configuration
     _dynamic_tasks = create_dynamic_tasks()
 
-    # Import dynamic tasks into module namespace
     for task_name, task_class in _dynamic_tasks.items():
         globals()[task_name] = task_class
 
-    # Build __all__ list with all tasks
     __all__ = [
         'BaseETLTask', 'SourceDatabaseTask', 'TargetDatabaseTask',
     ] + list(_dynamic_tasks.keys())
 
 except ImportError:
-    # Luigi not available, create minimal interface
     _dynamic_tasks = {}
     __all__ = []

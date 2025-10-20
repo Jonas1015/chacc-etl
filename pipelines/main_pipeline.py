@@ -7,8 +7,7 @@
 
 import luigi
 from datetime import datetime
-from tasks.dynamic_task_factory_new import create_dynamic_tasks
-from tasks.schema_tasks import CreateTargetDatabaseTask, CreateETLMetadataTableTask
+from tasks.dynamic_task_factory import create_dynamic_tasks
 
 _dynamic_tasks = create_dynamic_tasks()
 
@@ -26,10 +25,16 @@ class DatabaseMigrationPipeline(luigi.Task):
     last_updated = luigi.DateParameter(default=None)
 
     def requires(self):
-        return [
-            CreateTargetDatabaseTask(),
-            CreateETLMetadataTableTask()
-        ]
+        required_tasks = []
+        for task_class in _dynamic_tasks.values():
+            try:
+                if hasattr(task_class, 'incremental'):
+                    required_tasks.append(task_class(incremental=self.incremental, last_updated=self.last_updated))
+                else:
+                    required_tasks.append(task_class())
+            except TypeError:
+                required_tasks.append(task_class())
+        return required_tasks
 
     def output(self):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

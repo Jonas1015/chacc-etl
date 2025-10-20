@@ -1,246 +1,165 @@
+#   Copyright 2025 Jonas G Mwambimbi
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#       you may not use this file except in compliance with the License.
+#       You may obtain a copy of the License at
+# 
+#            http://www.apache.org/licenses/LICENSE-2.0
+
 """
-Dynamic task factory that creates Luigi tasks from SQL files.
-Scans the sql/ directory and creates corresponding Luigi task classes.
+Dynamic task factory that creates Luigi tasks from JSON configuration.
+Creates all tasks dynamically from task_definitions.json.
 """
 
 import os
-import glob
 import json
-import fnmatch
-
-from tasks.flattened_table_tasks import load_task_dependencies
-
-# Store SQL file information
-_sql_files_info = {}
-_task_dependencies = {}
-_dynamic_tasks = {}
+import luigi
+from tasks.base_tasks import TargetDatabaseTask
+from utils import log_task_start, log_task_complete, log_task_error, execute_query
+from datetime import datetime
+from config import TARGET_DB_CONFIG, SOURCE_DB_CONFIG, DATA_DIR
 
 def load_task_definitions():
-    """Load task definitions from JSON configuration."""
-    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'task_definitions.json')
-    if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            return config.get('tasks', {}), config.get('task_dependencies', {})
-    return {}, {}
+    """Load task definitions from JSON configuration files in config/tasks/ folder."""
+    tasks_dir = os.path.join(os.path.dirname(__file__), '..', 'config', 'tasks')
+    tasks = {}
+    if os.path.exists(tasks_dir):
+        for file in sorted(os.listdir(tasks_dir)):
+            if file.endswith('.json'):
+                file_path = os.path.join(tasks_dir, file)
+                with open(file_path, 'r') as f:
+                    config = json.load(f)
+                    if 'tasks' in config:
+                        tasks.update(config['tasks'])
+    return tasks, {}
 
-def resolve_dependencies(task_name, all_tasks, dependencies_config, patterns_config):
-    """Resolve dependencies for a task, including pattern matching."""
-    deps = []
-
-    # Check direct dependencies
-    if task_name in dependencies_config:
-        deps.extend(dependencies_config[task_name])
-
-    # Check pattern dependencies
-    for pattern, pattern_deps in patterns_config.items():
-        if fnmatch.fnmatch(task_name, pattern):
-            deps.extend(pattern_deps)
-
-    # Expand wildcard patterns to actual task names
-    expanded_deps = []
-    for dep in deps:
-        if '*' in dep:
-            # Find all tasks that match the pattern
-            matching_tasks = [t for t in all_tasks if fnmatch.fnmatch(t, dep)]
-            expanded_deps.extend(matching_tasks)
-        else:
-            expanded_deps.append(dep)
-
-    # Remove duplicates and filter to existing tasks
-    return list(set(expanded_deps) & set(all_tasks))
-
-def scan_sql_directory():
-    """Scan sql/ directory and collect SQL file information."""
-    sql_dir = os.path.join(os.path.dirname(__file__), '..', 'sql')
-
-    # Define dependency order
-    dependency_order = ['init', 'tables', 'procedures']
-
-    # Collect all SQL files by directory
-    sql_files_by_dir = {}
-    for dirname in dependency_order:
-        dir_path = os.path.join(sql_dir, dirname)
-        if os.path.exists(dir_path):
-            sql_files = glob.glob(os.path.join(dir_path, '*.sql'))
-            sql_files_by_dir[dirname] = sorted(sql_files)
-
-    # Store file information with dependencies
-    for dir_type in dependency_order:
-        if dir_type not in sql_files_by_dir:
-            continue
-
-        sql_files = sql_files_by_dir[dir_type]
-
-        for sql_file in sql_files:
-            # Generate task name from file path
-            rel_path = os.path.relpath(sql_file, sql_dir)
-            task_name = rel_path.replace('/', '_').replace('\\', '_').replace('.sql', '').replace('.', '_')
-            task_name = ''.join(word.capitalize() for word in task_name.split('_')) + 'Task'
-
-            # Determine dependencies
-            dependencies = []
-            if dir_type == 'tables':
-                # Tables depend on init tasks
-                for init_file in sql_files_by_dir.get('init', []):
-                    init_rel_path = os.path.relpath(init_file, sql_dir)
-                    init_task_name = init_rel_path.replace('/', '_').replace('\\', '_').replace('.sql', '').replace('.', '_')
-                    init_task_name = ''.join(word.capitalize() for word in init_task_name.split('_')) + 'Task'
-                    dependencies.append(init_task_name)
-
-                # Add inter-table dependencies based on foreign keys
-                table_name = os.path.basename(sql_file).replace('.sql', '')
-                if table_name == 'encounters':
-                    # Encounters depends on patients
-                    dependencies.append('TablesPatientsTask')
-                elif table_name == 'observations':
-                    # Observations depends on patients, encounters, locations
-                    dependencies.extend(['TablesPatientsTask', 'TablesEncountersTask', 'TablesLocationsTask'])
-                
-            elif dir_type == 'procedures':
-                # Procedures depend on tables
-                for table_file in sql_files_by_dir.get('tables', []):
-                    table_rel_path = os.path.relpath(table_file, sql_dir)
-                    table_task_name = table_rel_path.replace('/', '_').replace('\\', '_').replace('.sql', '').replace('.', '_')
-                    table_task_name = ''.join(word.capitalize() for word in task_name.split('_')) + 'Task'
-                    dependencies.append(table_task_name)
-
-            _sql_files_info[task_name] = {
-                'sql_file_path': sql_file,
-                'task_name': task_name,
-                'dir_type': dir_type,
-                'dependencies': dependencies
-            }
-
-    return _sql_files_info
-
-_sql_files_info = scan_sql_directory()
-
-def get_sql_files_info():
-    """Get information about all SQL files."""
-    return _sql_files_info
-
-def get_task_names():
-    """Get all task names that will be created."""
-    return list(_sql_files_info.keys())
-
-def create_dynamic_tasks():
-    """Create Luigi task classes dynamically."""
-    import luigi
-    from tasks.base_tasks import TargetDatabaseTask
-    from utils import log_task_start, log_task_complete, log_task_error, execute_query
-    from datetime import datetime
-    import pymysql
-    from config import TARGET_DB_CONFIG, DATA_DIR
-
-    def read_sql_file(filepath):
-        """Read SQL content from a file."""
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-
-    def update_task_status(conn, task_name, status, error_message=None):
-        """Update task status in etl_metadata table."""
-        try:
-            sql = """
-                INSERT INTO etl_metadata (table_name, status, error_message, last_update_timestamp, updated_at)
-                VALUES (%s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    status = VALUES(status),
-                    error_message = VALUES(error_message),
-                    last_update_timestamp = VALUES(last_update_timestamp),
-                    updated_at = VALUES(updated_at)
-            """
-            execute_query(conn, sql, (task_name, status, error_message, datetime.now(), datetime.now()))
-        except Exception as e:
+def update_task_status(conn, task_name, status, error_message=None):
+    """Update task status in etl_metadata table."""
+    try:
+        sql = """
+            INSERT INTO etl_metadata (table_name, status, error_message, last_update_timestamp, updated_at)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                status = VALUES(status),
+                error_message = VALUES(error_message),
+                last_update_timestamp = VALUES(last_update_timestamp),
+                updated_at = VALUES(updated_at)
+        """
+        execute_query(conn, sql, (task_name, status, error_message, datetime.now(), datetime.now()))
+    except Exception as e:
+        if "doesn't exist" not in str(e):
             print(f"Could not update task status for {task_name}: {e}")
 
-    class BaseDynamicSQLTask(TargetDatabaseTask):
-        """Base class for dynamically created SQL tasks."""
+def get_sql_content(task_config):
+    """Get SQL content - either from direct string or file path."""
+    if 'sql' in task_config:
+        sql_value = task_config['sql']
+        if isinstance(sql_value, str) and ('/' in sql_value or sql_value.startswith('sql/')):
+            sql_file_path = os.path.join(os.path.dirname(__file__), '..', sql_value)
+            if os.path.exists(sql_file_path):
+                with open(sql_file_path, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            else:
+                raise FileNotFoundError(f"SQL file not found: {sql_file_path}")
+        else:
+            return sql_value
+    return ''
 
-        sql_file_path = luigi.Parameter()
+def create_dynamic_tasks():
+    """Create Luigi task classes dynamically from JSON configuration."""
+    task_definitions, dependencies_config = load_task_definitions()
 
-        def update_status(self, status, error_message=None):
-            """Update task execution status."""
-            try:
-                with self.get_db_connection() as conn:
-                    update_task_status(conn, self.__class__.__name__, status, error_message)
-            except:
-                pass
-
-        def output(self):
-            task_name = self.__class__.__name__
-            return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name.lower()}_completed.txt'))
-
-        def run(self):
-            try:
-                log_task_start(self)
-                self.update_status('running')
-
-                # Read and execute SQL file
-                sql = read_sql_file(self.sql_file_path)
-                with self.get_db_connection() as conn:
-                    # For procedures, handle DELIMITER
-                    if self.__class__.__name__.startswith('Procedures'):
-                        # Split SQL by DELIMITER statements
-                        import re
-                        # Remove DELIMITER statements and split by //
-                        sql = re.sub(r'DELIMITER\s+//', '', sql)
-                        sql = re.sub(r'DELIMITER\s+;', '', sql)
-                        statements = sql.split('//')
-                        for statement in statements:
-                            statement = statement.strip()
-                            if statement:
-                                conn.query(statement)
-                        conn.commit()
-                    else:
-                        execute_query(conn, sql)
-
-                # Mark as complete
-                with self.output().open('w') as f:
-                    f.write(f'{self.__class__.__name__} completed successfully\n')
-
-                self.update_status('completed')
-                log_task_complete(self)
-            except Exception as e:
-                self.update_status('failed', str(e))
-                log_task_error(self, e)
-                raise
-
-    # Load dependency configuration
-    dependencies_config, patterns_config = load_task_dependencies()
-
-    # Create task classes
     dynamic_tasks = {}
 
-    for task_name, info in _sql_files_info.items():
-        sql_file_path = info['sql_file_path']
-        dir_type = info['dir_type']
-        dependencies = info['dependencies']
+    for task_name, task_config in task_definitions.items():
+        task_type = task_config.get('type')
 
-        if dir_type == 'init':
-            # Database creation tasks - special handling
-            class DynamicDBTask(BaseDynamicSQLTask):
+        if task_type == 'schema':
+            class DynamicSchemaTask(TargetDatabaseTask):
+                sql = luigi.Parameter()
+                task_config = luigi.Parameter()
+
+                def update_status(self, status, error_message=None):
+                    try:
+                        with self.get_db_connection() as conn:
+                            update_task_status(conn, self.__class__.__name__, status, error_message)
+                    except:
+                        pass
+
+                def output(self):
+                    task_name = self.__class__.__name__
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name.lower()}_completed.txt'))
+
                 def run(self):
                     try:
                         log_task_start(self)
                         self.update_status('running')
 
-                        # Read database creation SQL
-                        sql = read_sql_file(self.sql_file_path)
+                        sql = self.sql
+                        print(f"[{self.__class__.__name__}] Executing SQL: {sql}")
+                        if 'CREATE DATABASE' in sql.upper():
+                            print(f"[{self.__class__.__name__}] Using MySQL system connection for database creation")
+                            from utils.db_utils import get_mysql_db_connection
+                            from config import TARGET_DB_NAME
+                            if '{database_name}' in sql:
+                                sql = sql.format(database_name=TARGET_DB_NAME)
+                            with get_mysql_db_connection() as conn:
+                                execute_query(conn, sql)
+                        else:
+                            print(f"[{self.__class__.__name__}] Using target database connection")
+                            with self.get_db_connection() as conn:
+                                execute_query(conn, sql)
 
-                        # Create database using connection without database specified
-                        db_config_no_db = TARGET_DB_CONFIG.copy()
-                        db_config_no_db.pop('database', None)
+                        print(f"[{self.__class__.__name__}] SQL executed successfully")
+                        with self.output().open('w') as f:
+                            f.write(f'{self.__class__.__name__} completed successfully\n')
 
-                        conn = pymysql.connect(**db_config_no_db)
-                        try:
+                        self.update_status('completed')
+                        log_task_complete(self)
+                    except Exception as e:
+                        print(f"[{self.__class__.__name__}] ERROR: {str(e)}")
+                        self.update_status('failed', str(e))
+                        log_task_error(self, e)
+                        raise
+
+            task_class = type(task_name, (DynamicSchemaTask,), {
+                'sql': get_sql_content(task_config),
+                'task_config': task_config
+            })
+
+        elif task_type == 'procedure':
+            class DynamicProcedureTask(TargetDatabaseTask):
+                sql = luigi.Parameter()
+                task_config = luigi.Parameter()
+
+                def update_status(self, status, error_message=None):
+                    try:
+                        with self.get_db_connection() as conn:
+                            update_task_status(conn, self.__class__.__name__, status, error_message)
+                    except:
+                        pass
+
+                def output(self):
+                    task_name = self.__class__.__name__
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name.lower()}_completed.txt'))
+
+                def run(self):
+                    try:
+                        log_task_start(self)
+                        self.update_status('running')
+
+                        sql = self.sql
+                        with self.get_db_connection() as conn:
+                            import re
+                            sql = re.sub(r'DELIMITER\s+//', '', sql)
+                            sql = re.sub(r'DELIMITER\s+;', '', sql)
+                            statements = sql.split('//')
                             with conn.cursor() as cursor:
-                                cursor.execute(sql)
+                                for statement in statements:
+                                    statement = statement.strip()
+                                    if statement:
+                                        cursor.execute(statement)
                             conn.commit()
-                        finally:
-                            conn.close()
 
-                        # Mark as complete
                         with self.output().open('w') as f:
                             f.write(f'{self.__class__.__name__} completed successfully\n')
 
@@ -251,78 +170,294 @@ def create_dynamic_tasks():
                         log_task_error(self, e)
                         raise
 
-            # Create a unique class for this task
-            task_class = type(task_name, (DynamicDBTask,), {'sql_file_path': sql_file_path})
+            task_class = type(task_name, (DynamicProcedureTask,), {
+                'sql': get_sql_content(task_config),
+                'task_config': task_config
+            })
+
+        elif task_type == 'extract_load':
+            class DynamicExtractLoadTask(TargetDatabaseTask):
+                task_config = luigi.Parameter()
+                incremental = luigi.BoolParameter(default=False)
+                last_updated = luigi.DateParameter(default=None)
+
+                def requires(self):
+                    return []
+
+                def output(self):
+                    task_name_lower = self.__class__.__name__.lower()
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_completed.txt'))
+
+                def run(self):
+                    try:
+                        log_task_start(self)
+
+                        target_table = self.task_config.get('target_table')
+                        incremental_field = self.task_config.get('incremental_field')
+
+                        query = get_sql_content({'sql': self.task_config.get('query')})
+                        full_load_sql = get_sql_content({'sql': self.task_config.get('full_load_sql')})
+                        incremental_sql = get_sql_content({'sql': self.task_config.get('incremental_sql')})
+
+                        if not query:
+                            raise ValueError(f"No query defined for {self.__class__.__name__}")
+                        if not full_load_sql:
+                            raise ValueError(f"No full_load_sql defined for {self.__class__.__name__}")
+
+                        params = None
+                        if self.incremental and incremental_field and self.last_updated:
+                            if '%s' in query:
+                                params = (self.last_updated,)
+                            else:
+                                query += f" WHERE {incremental_field} > %s ORDER BY {incremental_field}"
+                                params = (self.last_updated,)
+
+                        from utils.db_utils import get_source_db_connection
+                        with get_source_db_connection() as source_conn:
+                            from utils.db_utils import execute_query
+                            results = execute_query(source_conn, query, params, fetch=True)
+
+                        if not results:
+                            self.logger.info("No data to load")
+                            with self.output().open('w') as f:
+                                f.write(f'{self.__class__.__name__} completed successfully (no data)\n')
+                            return
+
+                        sql = incremental_sql if (self.incremental and incremental_sql) else full_load_sql
+
+                        data_tuples = []
+                        for row in results:
+                            if isinstance(row, dict):
+                                # For dict results, we need to ensure the values are in the correct order
+                                # to match the INSERT statement column order
+                                # Extract values in the order they appear in the dict (which should match SELECT order)
+                                row_tuple = tuple(row.values())
+                                data_tuples.append(row_tuple)
+                            elif isinstance(row, (list, tuple)):
+                                data_tuples.append(tuple(row))
+                            else:
+                                data_tuples.append((row,))
+
+                        with self.get_db_connection() as target_conn:
+                            if not self.incremental:
+                                print(f"[{self.__class__.__name__}] Truncating table {target_table}")
+                                with target_conn.cursor() as cursor:
+                                    cursor.execute(f"TRUNCATE TABLE {target_table}")
+                            print(f"[{self.__class__.__name__}] Inserting {len(data_tuples)} records into {target_table}")
+                            with target_conn.cursor() as cursor:
+                                cursor.executemany(sql, data_tuples)
+                            target_conn.commit()
+
+                        try:
+                            metadata_sql = """
+                                INSERT INTO etl_metadata (table_name, record_count, status, updated_at)
+                                VALUES (%s, %s, 'completed', NOW())
+                                ON DUPLICATE KEY UPDATE
+                                    record_count = VALUES(record_count),
+                                    status = 'completed',
+                                    updated_at = NOW()
+                            """
+                            execute_query(target_conn, metadata_sql, (target_table, len(results)))
+                        except:
+                            pass
+
+                        with self.output().open('w') as f:
+                            f.write(f'{self.__class__.__name__} completed successfully: {len(results)} records\n')
+
+                        log_task_complete(self)
+                    except Exception as e:
+                        log_task_error(self, e)
+                        raise
+
+            task_class = type(task_name, (DynamicExtractLoadTask,), {
+                'task_config': task_config
+            })
+
+        elif task_type == 'load':
+            class DynamicLoadTask(TargetDatabaseTask):
+                task_config = luigi.Parameter()
+                incremental = luigi.BoolParameter(default=False)
+                last_updated = luigi.DateParameter(default=None)
+
+                def requires(self):
+                    extract_task_name = task_name.replace('Load', 'Extract')
+                    return [dynamic_tasks.get(extract_task_name, type('DummyTask', (), {}))()]
+
+                def output(self):
+                    task_name_lower = self.__class__.__name__.lower()
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_completed.txt'))
+
+                def run(self):
+                    try:
+                        log_task_start(self)
+
+                        source_file = self.task_config['source_file']
+                        source_path = os.path.join(DATA_DIR, source_file)
+
+                        if not os.path.exists(source_path):
+                            self.logger.info(f"No data file {source_file} found, skipping load")
+                            with self.output().open('w') as f:
+                                f.write(f'{self.__class__.__name__} completed successfully (no data)\n')
+                            return
+
+                        with open(source_path, 'r') as f:
+                            data = json.load(f)
+
+                        if not data:
+                            self.logger.info("No data to load")
+                            with self.output().open('w') as f:
+                                f.write(f'{self.__class__.__name__} completed successfully (no data)\n')
+                            return
+
+                        target_table = self.task_config['target_table']
+                        sql = self.task_config['incremental_sql'] if self.incremental else self.task_config['full_load_sql']
+
+                        data_tuples = []
+                        for row in data:
+                            if isinstance(row, dict):
+                                data_tuples.append(tuple(row.values()))
+                            elif isinstance(row, (list, tuple)):
+                                data_tuples.append(tuple(row))
+                            else:
+                                data_tuples.append((row,))
+
+                        with self.get_db_connection() as conn:
+                            with conn.cursor() as cursor:
+                                cursor.executemany(sql, data_tuples)
+                            conn.commit()
+
+                        try:
+                            metadata_sql = """
+                                INSERT INTO etl_metadata (table_name, record_count, status, updated_at)
+                                VALUES (%s, %s, 'completed', NOW())
+                                ON DUPLICATE KEY UPDATE
+                                    record_count = VALUES(record_count),
+                                    status = 'completed',
+                                    updated_at = NOW()
+                            """
+                            execute_query(conn, metadata_sql, (target_table, len(data)))
+                        except:
+                            pass
+
+                        with self.output().open('w') as f:
+                            f.write(f'{self.__class__.__name__} completed successfully: {len(data)} records\n')
+
+                        log_task_complete(self)
+                    except Exception as e:
+                        log_task_error(self, e)
+                        raise
+
+            task_class = type(task_name, (DynamicLoadTask,), {
+                'task_config': task_config
+            })
+
+        elif task_type == 'flattened':
+            class DynamicFlattenedTask(TargetDatabaseTask):
+                task_config = luigi.Parameter()
+
+                def output(self):
+                    task_name_lower = self.__class__.__name__.lower()
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_created.txt'))
+
+                def run(self):
+                    try:
+                        log_task_start(self)
+
+                        procedure_call = self.task_config['procedure_call']
+                        with self.get_db_connection() as conn:
+                            execute_query(conn, procedure_call)
+
+                        with self.output().open('w') as f:
+                            f.write(f'{self.__class__.__name__} completed successfully\n')
+
+                        log_task_complete(self)
+                    except Exception as e:
+                        log_task_error(self, e)
+                        raise
+
+            task_class = type(task_name, (DynamicFlattenedTask,), {
+                'task_config': task_config
+            })
+
+        elif task_type == 'summary':
+            class DynamicSummaryTask(TargetDatabaseTask):
+                task_config = luigi.Parameter()
+
+                def output(self):
+                    task_name_lower = self.__class__.__name__.lower()
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_created.txt'))
+
+                def run(self):
+                    try:
+                        log_task_start(self)
+                        print(f"[{self.__class__.__name__}] Starting summary table creation")
+
+                        sql = getattr(self, 'sql', self.task_config.get('sql', ''))
+                        print(f"[{self.__class__.__name__}] Executing SQL: {sql[:100]}...")
+                        with self.get_db_connection() as conn:
+                            statements = [stmt.strip() for stmt in sql.split(';') if stmt.strip()]
+                            for stmt in statements:
+                                if stmt:
+                                    print(f"[{self.__class__.__name__}] Executing statement: {stmt[:50]}...")
+                                    execute_query(conn, stmt)
+                            print(f"[{self.__class__.__name__}] Table creation completed")
+
+                            indexes = self.task_config.get('indexes', [])
+                            for i, index_sql in enumerate(indexes):
+                                print(f"[{self.__class__.__name__}] Creating index {i+1}/{len(indexes)}")
+                                try:
+                                    execute_query(conn, index_sql)
+                                except Exception as e:
+                                    if "Duplicate key name" not in str(e):
+                                        raise
+                            print(f"[{self.__class__.__name__}] All indexes created")
+
+                        with self.output().open('w') as f:
+                            f.write(f'{self.__class__.__name__} completed successfully\n')
+
+                        print(f"[{self.__class__.__name__}] Task completed successfully")
+                        log_task_complete(self)
+                    except Exception as e:
+                        print(f"[{self.__class__.__name__}] ERROR: {str(e)}")
+                        log_task_error(self, e)
+                        raise
+
+            task_class = type(task_name, (DynamicSummaryTask,), {
+                'task_config': task_config
+            })
+
+            if 'sql' in task_config:
+                task_class.sql = get_sql_content(task_config)
 
         else:
-            # Table and procedure tasks
-            task_class = type(task_name, (BaseDynamicSQLTask,), {'sql_file_path': sql_file_path})
+            class DynamicTask(TargetDatabaseTask):
+                task_config = luigi.Parameter()
+
+                def output(self):
+                    task_name_lower = self.__class__.__name__.lower()
+                    return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_completed.txt'))
+
+                def run(self):
+                    try:
+                        log_task_start(self)
+
+                        with self.output().open('w') as f:
+                            f.write(f'{self.__class__.__name__} completed successfully\n')
+
+                        log_task_complete(self)
+                    except Exception as e:
+                        log_task_error(self, e)
+                        raise
+
+            task_class = type(task_name, (DynamicTask,), {
+                'task_config': task_config
+            })
 
         dynamic_tasks[task_name] = task_class
 
-    # Get all task names (dynamic + static)
-    all_task_names = list(dynamic_tasks.keys())
-
-    # Add static task names that are imported in the main pipeline
-    static_tasks = [
-        'ExtractPatientsTask', 'ExtractEncountersTask', 'ExtractObservationsTask', 'ExtractLocationsTask',
-        'LoadPatientsTask', 'LoadEncountersTask', 'LoadObservationsTask', 'LoadLocationsTask',
-        'CreateFlattenedPatientEncountersTask', 'CreateFlattenedObservationsTask',
-        'CreatePatientSummaryTableTask', 'CreateObservationSummaryTableTask', 'CreateLocationSummaryTableTask',
-        'CreateETLMetadataTableTask'
-    ]
-    all_task_names.extend(static_tasks)
-
-    # Set up dependencies for all tasks
     for task_name, task_class in dynamic_tasks.items():
-        deps = resolve_dependencies(task_name, all_task_names, dependencies_config, patterns_config)
+        task_config = task_definitions.get(task_name, {})
+        deps = task_config.get('dependencies', [])
         task_class.requires = lambda self, deps=deps, tasks=dynamic_tasks: [tasks[dep]() for dep in deps if dep in tasks]
 
-    return _dynamic_tasks
-
-def setup_task_dependencies():
-    """Set up dependencies for all tasks based on configuration."""
-    global _dynamic_tasks
-    dependencies_config, patterns_config = load_task_dependencies()
-
-    # Get all dynamic tasks
-    _dynamic_tasks = create_dynamic_tasks()
-    all_task_names = list(_dynamic_tasks.keys())
-
-    # Add static task names
-    static_tasks = [
-        'ExtractPatientsTask', 'ExtractEncountersTask', 'ExtractObservationsTask', 'ExtractLocationsTask',
-        'LoadPatientsTask', 'LoadEncountersTask', 'LoadObservationsTask', 'LoadLocationsTask',
-        'CreateFlattenedPatientEncountersTask', 'CreateFlattenedObservationsTask',
-        'CreatePatientSummaryTableTask', 'CreateObservationSummaryTableTask', 'CreateLocationSummaryTableTask',
-        'CreateETLMetadataTableTask'
-    ]
-    all_task_names.extend(static_tasks)
-
-    # Set up dependencies for static tasks by importing and modifying them
-    import importlib
-
-    # Import static task modules
-    task_modules = [
-        ('tasks.extract_tasks', ['ExtractPatientsTask', 'ExtractEncountersTask', 'ExtractObservationsTask', 'ExtractLocationsTask']),
-        ('tasks.load_tasks', ['LoadPatientsTask', 'LoadEncountersTask', 'LoadObservationsTask', 'LoadLocationsTask']),
-        ('tasks.flattened_table_tasks', ['CreateFlattenedPatientEncountersTask', 'CreateFlattenedObservationsTask',
-                                        'CreatePatientSummaryTableTask', 'CreateObservationSummaryTableTask', 'CreateLocationSummaryTableTask']),
-        ('tasks.schema_tasks', ['CreateETLMetadataTableTask'])
-    ]
-
-    for module_name, task_names in task_modules:
-        try:
-            module = importlib.import_module(module_name)
-            for task_name in task_names:
-                if hasattr(module, task_name):
-                    task_class = getattr(module, task_name)
-                    deps = resolve_dependencies(task_name, all_task_names, dependencies_config, patterns_config)
-                    # Filter to only dynamic tasks for now (static tasks handle their own dependencies)
-                    dynamic_deps = [d for d in deps if d in _dynamic_tasks]
-                    if dynamic_deps:
-                        task_class.requires = lambda self, deps=dynamic_deps, tasks=_dynamic_tasks: [tasks[dep]() for dep in deps if dep in tasks]
-        except ImportError:
-            pass  # Module might not exist
-
-    return _dynamic_tasks
+    return dynamic_tasks

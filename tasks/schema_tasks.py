@@ -1,3 +1,11 @@
+# Copyright 2025 Jonas G Mwambimbi
+# Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+
 import luigi
 import os
 import pymysql
@@ -25,7 +33,6 @@ def update_task_status(conn, task_name, status, error_message=None):
         """
         execute_query(conn, sql, (task_name, status, error_message, datetime.now(), datetime.now()))
     except Exception as e:
-        # If etl_metadata table doesn't exist yet, just log
         print(f"Could not update task status for {task_name}: {e}")
 
 class BaseSQLTask(TargetDatabaseTask):
@@ -37,77 +44,12 @@ class BaseSQLTask(TargetDatabaseTask):
             with self.get_db_connection() as conn:
                 update_task_status(conn, self.__class__.__name__, status, error_message)
         except:
-            pass  # Ignore if status update fails
+            pass
 
-    def run_sql_file(self, sql_file_path):
-        """Execute SQL from a file."""
+    def run_sql_file(self, sql_file_path, **kwargs):
+        """Execute SQL from a file with optional string formatting."""
         sql = read_sql_file(sql_file_path)
+        if kwargs:
+            sql = sql.format(**kwargs)
         with self.get_db_connection() as conn:
             execute_query(conn, sql)
-
-class CreateTargetDatabaseTask(BaseSQLTask):
-    """
-    Create the target analytics database if it doesn't exist.
-    """
-
-    def output(self):
-        return luigi.LocalTarget(os.path.join(DATA_DIR, 'target_database_created.txt'))
-
-    def run(self):
-        try:
-            log_task_start(self)
-            self.update_status('running')
-
-            # Read database creation SQL
-            sql_file = os.path.join(os.path.dirname(__file__), '..', 'sql', 'init', 'create_database.sql')
-            create_db_sql = read_sql_file(sql_file)
-
-            # Create database using connection without database specified
-            db_config_no_db = TARGET_DB_CONFIG.copy()
-            db_config_no_db.pop('database', None)
-
-            conn = pymysql.connect(**db_config_no_db)
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute(create_db_sql)
-                conn.commit()
-            finally:
-                conn.close()
-
-            # Mark as complete
-            with self.output().open('w') as f:
-                f.write('Target database created successfully\n')
-
-            self.update_status('completed')
-            log_task_complete(self)
-        except Exception as e:
-            self.update_status('failed', str(e))
-            log_task_error(self, e)
-            raise
-
-class CreateETLMetadataTableTask(BaseSQLTask):
-    """Create ETL metadata table."""
-
-    def requires(self):
-        return CreateTargetDatabaseTask()
-
-    def output(self):
-        return luigi.LocalTarget(os.path.join(DATA_DIR, 'etl_metadata_table_created.txt'))
-
-    def run(self):
-        try:
-            log_task_start(self)
-            self.update_status('running')
-
-            sql_file = os.path.join(os.path.dirname(__file__), '..', 'sql', 'tables', 'etl_metadata.sql')
-            self.run_sql_file(sql_file)
-
-            with self.output().open('w') as f:
-                f.write('ETL metadata table created successfully\n')
-
-            self.update_status('completed')
-            log_task_complete(self)
-        except Exception as e:
-            self.update_status('failed', str(e))
-            log_task_error(self, e)
-            raise

@@ -1,0 +1,22 @@
+{
+  "tasks": {
+    "InitCreateDatabaseTask": {
+      "type": "schema",
+      "dependencies": [],
+      "sql": "sql/init/000_create_database.sql",
+      "description": "Create the analytics database"
+    },
+    "TablesEtlMetadataTask": {
+      "type": "schema",
+      "dependencies": ["InitCreateDatabaseTask"],
+      "sql": "sql/tables/000_etl_metadata.sql",
+      "description": "Create ETL metadata tracking table"
+    },
+    "TablesEtlWatermarksTask": {
+      "type": "schema",
+      "dependencies": ["InitCreateDatabaseTask"],
+      "sql": "sql/tables/001_etl_watermarks.sql",
+      "description": "Create ETL watermarks table for incremental loads"
+    }
+  }
+}

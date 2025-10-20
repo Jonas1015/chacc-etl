@@ -45,7 +45,7 @@ import luigi
 def main():
     setup_logging()
 
-    parser = argparse.ArgumentParser(description='Run Database Migration Pipeline for Source Analytics')
+    parser = argparse.ArgumentParser(description='Run Database Migration Pipeline from Source to Analytics')
     parser.add_argument('--incremental', action='store_true',
                        help='Run incremental migration (only process changed data)')
     parser.add_argument('--full-refresh', action='store_true',

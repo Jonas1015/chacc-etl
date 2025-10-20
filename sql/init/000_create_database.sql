@@ -1,0 +1,10 @@
+--  Copyright 2025 Jonas G Mwambimbi
+--  Licensed under the Apache License, Version 2.0 (the "License");
+--     you may not use this file except in compliance with the License.
+--     You may obtain a copy of the License at
+
+--         http://www.apache.org/licenses/LICENSE-2.0
+
+CREATE DATABASE IF NOT EXISTS {database_name}
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
