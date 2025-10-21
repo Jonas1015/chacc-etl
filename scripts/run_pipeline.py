@@ -42,6 +42,15 @@ from pipelines.main_pipeline import DatabaseMigrationPipeline, ScheduledIncremen
 from utils import setup_logging
 import luigi
 
+# Import progress tracking
+try:
+    from services.progress_service import update_task_progress
+    HAS_PROGRESS_SERVICE = True
+except ImportError:
+    HAS_PROGRESS_SERVICE = False
+    def update_task_progress(*args, **kwargs):
+        pass
+
 def main():
     setup_logging()
 
@@ -111,6 +120,24 @@ def main():
             )
 
         use_local_scheduler = args.local_scheduler and not args.central_scheduler
+
+        # Custom event handler for progress tracking
+        class ProgressEventHandler(luigi.Event):
+            @staticmethod
+            def event_handler(event, task, **kwargs):
+                if HAS_PROGRESS_SERVICE:
+                    if event == luigi.Event.START:
+                        update_task_progress(task.task_family, 'running')
+                        print(f"Started task: {task.task_family}")
+                    elif event == luigi.Event.SUCCESS:
+                        update_task_progress(task.task_family, 'completed')
+                        print(f"Completed task: {task.task_family}")
+                    elif event == luigi.Event.FAILURE:
+                        print(f"Failed task: {task.task_family}")
+
+        # Register the event handler
+        if HAS_PROGRESS_SERVICE:
+            luigi.Event.event_handler = ProgressEventHandler.event_handler
 
         success = luigi.build(
             [task],

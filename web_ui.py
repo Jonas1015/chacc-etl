@@ -7,28 +7,104 @@ Web UI for Source Database Migration Pipeline
 Provides a simple web interface to run the ETL pipeline with buttons.
 """
 
+import fcntl
 import os
 import threading
 import time
 from flask import Flask, render_template, request, send_from_directory
 from flask_socketio import SocketIO
 
-# Import our service modules
 from services.daemon_service import ensure_luigi_daemon_running
 from services.pipeline_service import execute_pipeline, get_pipeline_result
 from services.progress_service import monitor_pipeline_progress, initialize_task_status
 from services.socket_handlers import register_socket_handlers
 from services.history_service import log_pipeline_execution, get_recent_history, get_history_stats, clear_history, get_history_count, get_pipeline_types
 
-# Add parent directory to path for imports
+import select
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+def parse_luigi_progress(line, action):
+    """Parse progress information from Luigi output"""
+    import re
 
-# Initialize Flask app
+    patterns = [
+        r'(\d+)% complete',
+        r'progress: (\d+)%',
+        r'(\d+)/(\d+) tasks?',
+        r'Running (\w+)',
+        r'Completed (\w+)',
+        r'Scheduled (\w+)',
+        r'INFO.*luigi.*: (.*)',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, line, re.IGNORECASE)
+        if match:
+            if '%' in pattern:
+                try:
+                    progress = int(match.group(1))
+                    return {
+                        'running': True,
+                        'progress': min(progress, 95),
+                        'message': f"Pipeline running... {progress}% complete",
+                        'current_task': action.replace('_', ' ').title()
+                    }
+                except (ValueError, IndexError):
+                    continue
+            elif 'tasks' in pattern.lower():
+                try:
+                    completed = int(match.group(1))
+                    total = int(match.group(2))
+                    progress = min(int((completed / total) * 100), 95)
+                    return {
+                        'running': True,
+                        'progress': progress,
+                        'message': f"Running pipeline... ({completed}/{total} tasks completed)",
+                        'current_task': action.replace('_', ' ').title()
+                    }
+                except (ValueError, IndexError, ZeroDivisionError):
+                    continue
+            elif 'Running' in pattern:
+                task_name = match.group(1)
+                return {
+                    'running': True,
+                    'message': f"Running {task_name}...",
+                    'current_task': task_name
+                }
+            elif 'Completed' in pattern:
+                task_name = match.group(1)
+                return {
+                    'running': True,
+                    'message': f"Completed {task_name}",
+                    'current_task': task_name
+                }
+            elif 'Scheduled' in pattern:
+                task_name = match.group(1)
+                return {
+                    'running': True,
+                    'message': f"Scheduled {task_name}",
+                    'current_task': task_name
+                }
+            elif 'INFO' in pattern:
+                info_msg = match.group(1)
+                return {
+                    'running': True,
+                    'message': info_msg,
+                    'current_task': action.replace('_', ' ').title()
+                }
+
+    if any(keyword in line.lower() for keyword in ['starting', 'initializing', 'connecting', 'processing']):
+        return {
+            'running': True,
+            'message': line.strip(),
+            'current_task': action.replace('_', ' ').title()
+        }
+
+    return None
+
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Global task status tracking
 task_status = initialize_task_status()
 
 def run_pipeline_async(action):
@@ -38,7 +114,6 @@ def run_pipeline_async(action):
     start_time = time.time()
 
     try:
-        # Initialize task status
         task_status.update({
             'running': True,
             'current_task': action,
@@ -48,10 +123,17 @@ def run_pipeline_async(action):
         })
         socketio.emit('task_update', task_status)
 
-        # Ensure Luigi daemon is running
+        # Send initial progress update to show the UI
+        initial_progress = {
+            'running': True,
+            'progress': 5,
+            'message': f"Initializing {action.replace('_', ' ')} pipeline...",
+            'current_task': action.replace('_', ' ').title()
+        }
+        socketio.emit('task_update', initial_progress)
+
         ensure_luigi_daemon_running(socketio)
 
-        # Get task name for display
         if action == 'scheduled_incremental':
             task_name = "Scheduled Incremental Pipeline"
         elif action == 'scheduled_full':
@@ -59,30 +141,90 @@ def run_pipeline_async(action):
         else:
             task_name = action.replace('_', ' ').title() + " Pipeline"
 
-        # Initialize progress tracking
         from services.progress_service import initialize_progress_tracking
         initialize_progress_tracking(socketio, action)
 
-        # Execute pipeline and monitor progress
         process = execute_pipeline(action, socketio)
 
-        # Monitor process completion (simplified since progress is now event-driven)
+        # Monitor process output in real-time for progress updates
+        import threading
+
+        def monitor_output():
+            """Monitor stdout and stderr for progress information"""
+            last_update_time = time.time()
+
+            while process.poll() is None:
+                current_time = time.time()
+
+                if process.stdout:
+                    try:
+                        fd = process.stdout.fileno()
+                        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+                        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
+                        try:
+                            line = process.stdout.readline()
+                            if line:
+                                line_str = line.decode('utf-8', errors='ignore').strip()
+                                if line_str:
+                                    progress_info = parse_luigi_progress(line_str, action)
+                                    if progress_info:
+                                        socketio.emit('task_update', progress_info)
+                                        last_update_time = current_time
+                        except (OSError, IOError):
+                            pass
+                    except (AttributeError, ImportError):
+                        pass
+
+                if process.stderr:
+                    try:
+                        fd = process.stderr.fileno()
+                        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+                        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
+                        try:
+                            line = process.stderr.readline()
+                            if line:
+                                line_str = line.decode('utf-8', errors='ignore').strip()
+                                if line_str:
+                                    progress_info = parse_luigi_progress(line_str, action)
+                                    if progress_info:
+                                        socketio.emit('task_update', progress_info)
+                                        last_update_time = current_time
+                        except (OSError, IOError):
+                            pass
+                    except (AttributeError, ImportError):
+                        pass
+
+                # Send periodic heartbeat updates if no progress for 3 seconds
+                if current_time - last_update_time > 3:
+                    elapsed = current_time - start_time
+                    heartbeat_progress = {
+                        'running': True,
+                        'progress': min(90, 10 + int(elapsed / 10)),  # Slow progress indication
+                        'message': f"Pipeline running... ({int(elapsed)}s elapsed)",
+                        'current_task': action.replace('_', ' ').title()
+                    }
+                    socketio.emit('task_update', heartbeat_progress)
+                    last_update_time = current_time
+
+                time.sleep(0.1)
+
+        monitor_thread = threading.Thread(target=monitor_output, daemon=True)
+        monitor_thread.start()
+
         process.wait()
 
-        # Finalize progress tracking
         from services.progress_service import finalize_progress_tracking
         success = process.returncode == 0
         finalize_progress_tracking(success)
 
-        # Get final result
         result = get_pipeline_result(process, task_name)
         end_time = time.time()
 
-        # Log to history - use the actual success status from pipeline result
         success = "successfully" in result.get('message', '').lower()
         log_pipeline_execution(action, start_time, end_time, success, result.get('result', ''))
 
-        # Emit final result with proper status
         final_result = {
             **result,
             'running': False,
@@ -100,7 +242,6 @@ def run_pipeline_async(action):
             'message': f"Error: {str(e)}"
         })
 
-        # Log failed execution to history
         log_pipeline_execution(action, start_time, end_time, False, error_msg)
 
         socketio.emit('task_update', {
@@ -133,7 +274,6 @@ def index():
 @app.route('/history')
 def history():
     """Display pipeline execution history with filtering and pagination."""
-    # Get query parameters
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 25))
     pipeline_type = request.args.get('pipeline_type', '')
@@ -141,17 +281,14 @@ def history():
     date_to = request.args.get('date_to', '')
     status_filter = request.args.get('status', '')
 
-    # Convert status filter
     success = None
     if status_filter == 'success':
         success = True
     elif status_filter == 'failed':
         success = False
 
-    # Calculate offset
     offset = (page - 1) * per_page
 
-    # Get filtered data
     history_data = get_recent_history(
         limit=per_page,
         offset=offset,
