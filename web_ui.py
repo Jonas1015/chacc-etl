@@ -1,54 +1,209 @@
 # Copyright 2025 Jonas G Mwambimbi
 # Licensed under the Apache License, Version 2.0 (see LICENSE file for details)
 
-
 """
 Web UI for Source Database Migration Pipeline
 
 Provides a simple web interface to run the ETL pipeline with buttons.
 """
 
-import subprocess
-import sys
 import os
-import json
-from flask import Flask, render_template, render_template_string, request, redirect, url_for, send_from_directory
+import threading
+import time
+from flask import Flask, render_template, request, send_from_directory
+from flask_socketio import SocketIO
 
+# Import our service modules
+from services.daemon_service import ensure_luigi_daemon_running
+from services.pipeline_service import execute_pipeline, get_pipeline_result
+from services.progress_service import monitor_pipeline_progress, initialize_task_status
+from services.socket_handlers import register_socket_handlers
+from services.history_service import log_pipeline_execution, get_recent_history, get_history_stats, clear_history, get_history_count, get_pipeline_types
+
+# Add parent directory to path for imports
+import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Initialize Flask app
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Global task status tracking
+task_status = initialize_task_status()
+
+def run_pipeline_async(action):
+    """Run pipeline in background thread with progress updates"""
+    global task_status
+
+    start_time = time.time()
+
+    try:
+        # Initialize task status
+        task_status.update({
+            'running': True,
+            'current_task': action,
+            'progress': 0,
+            'message': f"Starting {action.replace('_', ' ')} pipeline...",
+            'start_time': start_time
+        })
+        socketio.emit('task_update', task_status)
+
+        # Ensure Luigi daemon is running
+        ensure_luigi_daemon_running(socketio)
+
+        # Get task name for display
+        if action == 'scheduled_incremental':
+            task_name = "Scheduled Incremental Pipeline"
+        elif action == 'scheduled_full':
+            task_name = "Scheduled Full Refresh Pipeline"
+        else:
+            task_name = action.replace('_', ' ').title() + " Pipeline"
+
+        # Initialize progress tracking
+        from services.progress_service import initialize_progress_tracking
+        initialize_progress_tracking(socketio, action)
+
+        # Execute pipeline and monitor progress
+        process = execute_pipeline(action, socketio)
+
+        # Monitor process completion (simplified since progress is now event-driven)
+        process.wait()
+
+        # Finalize progress tracking
+        from services.progress_service import finalize_progress_tracking
+        success = process.returncode == 0
+        finalize_progress_tracking(success)
+
+        # Get final result
+        result = get_pipeline_result(process, task_name)
+        end_time = time.time()
+
+        # Log to history - use the actual success status from pipeline result
+        success = "successfully" in result.get('message', '').lower()
+        log_pipeline_execution(action, start_time, end_time, success, result.get('result', ''))
+
+        # Emit final result with proper status
+        final_result = {
+            **result,
+            'running': False,
+            'current_task': None,
+            'progress': 100
+        }
+        socketio.emit('task_update', final_result)
+
+    except Exception as e:
+        end_time = time.time()
+        error_msg = f"Error running pipeline: {str(e)}"
+
+        task_status.update({
+            'progress': 100,
+            'message': f"Error: {str(e)}"
+        })
+
+        # Log failed execution to history
+        log_pipeline_execution(action, start_time, end_time, False, error_msg)
+
+        socketio.emit('task_update', {
+            **task_status,
+            'result': error_msg
+        })
+
+    finally:
+        task_status.update({
+            'running': False,
+            'current_task': None
+        })
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    status = None
-
     if request.method == 'POST':
         action = request.form.get('action')
 
-        try:
-            cmd = [sys.executable, 'scripts/run_pipeline.py']
+        if task_status['running']:
+            return render_template("index.html", status="A pipeline is already running. Please wait for it to complete.")
 
-            if action == 'full_refresh':
-                cmd.append('--full-refresh')
-            elif action == 'incremental':
-                cmd.append('--incremental')
-            elif action == 'scheduled':
-                cmd.append('--scheduled')
-            elif action == 'force_refresh':
-                cmd.append('--full-refresh')
-                cmd.append('--force')
+        thread = threading.Thread(target=run_pipeline_async, args=(action,))
+        thread.daemon = True
+        thread.start()
 
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
+        return render_template("index.html", status="Pipeline started in background. Check progress below.")
 
-            if result.returncode == 0:
-                status = f"Pipeline completed successfully!\n\nOutput:\n{result.stdout}"
-            else:
-                status = f"Pipeline failed with exit code {result.returncode}\n\nError:\n{result.stderr}\n\nOutput:\n{result.stdout}"
+    return render_template("index.html", status=None)
 
-        except Exception as e:
-            status = f"Error running pipeline: {str(e)}"
+@app.route('/history')
+def history():
+    """Display pipeline execution history with filtering and pagination."""
+    # Get query parameters
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 25))
+    pipeline_type = request.args.get('pipeline_type', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    status_filter = request.args.get('status', '')
 
-    return render_template("index.html", status=status)
+    # Convert status filter
+    success = None
+    if status_filter == 'success':
+        success = True
+    elif status_filter == 'failed':
+        success = False
+
+    # Calculate offset
+    offset = (page - 1) * per_page
+
+    # Get filtered data
+    history_data = get_recent_history(
+        limit=per_page,
+        offset=offset,
+        pipeline_type=pipeline_type if pipeline_type else None,
+        date_from=date_from if date_from else None,
+        date_to=date_to if date_to else None,
+        success=success
+    )
+
+    # Get total count for pagination
+    total_count = get_history_count(
+        pipeline_type=pipeline_type if pipeline_type else None,
+        date_from=date_from if date_from else None,
+        date_to=date_to if date_to else None,
+        success=success
+    )
+
+    # Get pipeline types for filter dropdown
+    pipeline_types = get_pipeline_types()
+
+    # Get stats (these are global, not filtered)
+    stats = get_history_stats()
+
+    # Calculate pagination info
+    total_pages = (total_count + per_page - 1) // per_page
+
+    return render_template('history.html',
+                         history=history_data,
+                         stats=stats,
+                         pipeline_types=pipeline_types,
+                         page=page,
+                         per_page=per_page,
+                         total_pages=total_pages,
+                         total_count=total_count,
+                         filters={
+                             'pipeline_type': pipeline_type,
+                             'date_from': date_from,
+                             'date_to': date_to,
+                             'status': status_filter
+                         })
+
+@app.route('/clear-history', methods=['POST'])
+def clear_history_route():
+    """Clear all pipeline execution history."""
+    try:
+        clear_history()
+        return {'success': True, 'message': 'History cleared successfully'}
+    except Exception as e:
+        return {'success': False, 'message': str(e)}, 500
+
+# Register WebSocket event handlers
+register_socket_handlers(socketio)
 
 @app.route('/sql-editor', methods=['GET', 'POST'])
 def sql_editor():
@@ -57,7 +212,6 @@ def sql_editor():
     content = ''
     message = ''
 
-    # Handle file deletion
     if request.method == 'POST' and 'delete' in request.form:
         delete_file = request.form.get('delete')
         sql_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sql')
@@ -109,7 +263,6 @@ def json_editor():
     content = ''
     message = ''
 
-    # Handle file deletion
     if request.method == 'POST' and 'delete' in request.form:
         delete_file = request.form.get('delete')
         config_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config')
@@ -167,7 +320,6 @@ def upload():
         folder_path = request.form.get('folder', '').strip()
 
         if uploaded_file and upload_type:
-            # Use custom filename if provided, otherwise use original
             if custom_filename:
                 if upload_type == 'sql' and not custom_filename.endswith('.sql'):
                     custom_filename += '.sql'
@@ -177,7 +329,6 @@ def upload():
             else:
                 filename = uploaded_file.filename
 
-            # Determine base directory
             if upload_type == 'sql':
                 base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sql')
             elif upload_type == 'json':
@@ -186,21 +337,17 @@ def upload():
                 message = "Invalid upload type"
                 return render_template("upload_template.html", message=message)
 
-            # Handle folder path
             if folder_path:
-                # Create folder if it doesn't exist
                 full_dir = os.path.join(base_dir, folder_path)
                 os.makedirs(full_dir, exist_ok=True)
             else:
-                # Use default folders
                 if upload_type == 'sql':
                     full_dir = os.path.join(base_dir, 'extract')
-                else:  # json
+                else:
                     full_dir = os.path.join(base_dir, 'tasks')
 
             file_path = os.path.join(full_dir, filename)
 
-            # Validate file extension
             if upload_type == 'sql' and not filename.endswith('.sql'):
                 message = "SQL files must have .sql extension"
             elif upload_type == 'json' and not filename.endswith('.json'):
@@ -220,4 +367,4 @@ if __name__ == '__main__':
     print("Starting Database ETL Pipeline Web UI...")
     print("Open http://localhost:5000 in your browser")
     print("For task visualization, start Luigi daemon: luigid --background --logdir logs/")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

@@ -79,8 +79,12 @@ def main():
         except ValueError:
             parser.error("Invalid date format for --last-updated. Use YYYY-MM-DD format.")
 
-    if args.scheduled and not last_updated:
-        last_updated = (datetime.now() - timedelta(days=1)).date()
+    # For scheduled runs, determine if it should be incremental or full based on parameters
+    if args.scheduled:
+        if not last_updated:
+            last_updated = (datetime.now() - timedelta(days=1)).date()
+        # If both scheduled and full_refresh are specified, do full refresh
+        # Otherwise, scheduled defaults to incremental
 
     if args.force:
         import shutil
@@ -90,7 +94,10 @@ def main():
         os.makedirs(DATA_DIR, exist_ok=True)
 
     try:
-        if args.full_refresh:
+        if args.full_refresh and args.scheduled:
+            print("Running scheduled full refresh migration...")
+            task = FullRefreshPipeline()
+        elif args.full_refresh:
             print("Running full refresh migration...")
             task = FullRefreshPipeline()
         elif args.scheduled:

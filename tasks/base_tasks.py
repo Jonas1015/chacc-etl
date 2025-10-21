@@ -19,6 +19,9 @@ logging.basicConfig(
     ]
 )
 
+# Import progress service for task lifecycle events
+from services.progress_service import update_task_progress
+
 class BaseETLTask(luigi.Task):
     """
     Base class for all ETL tasks with common functionality.
@@ -64,4 +67,25 @@ class TargetDatabaseTask(BaseETLTask):
         """Get a target database connection context manager."""
         from utils.db_utils import get_target_db_connection
         return get_target_db_connection()
+
+    def run(self):
+        """Override run method to add progress tracking."""
+        try:
+            # Signal task start
+            update_task_progress(self.__class__.__name__, 'running')
+
+            # Call the actual task implementation
+            self.execute_task()
+
+            # Signal task completion
+            update_task_progress(self.__class__.__name__, 'completed')
+
+        except Exception as e:
+            # Signal task failure
+            update_task_progress(self.__class__.__name__, 'failed')
+            raise
+
+    def execute_task(self):
+        """Override this method in subclasses to implement actual task logic."""
+        raise NotImplementedError("Subclasses must implement execute_task method")
 

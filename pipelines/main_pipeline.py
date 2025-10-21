@@ -8,6 +8,7 @@
 import luigi
 from datetime import datetime
 from tasks.dynamic_task_factory import create_dynamic_tasks
+from services.progress_service import initialize_progress_tracking
 
 _dynamic_tasks = create_dynamic_tasks()
 
@@ -16,6 +17,13 @@ for task_name, task_class in _dynamic_tasks.items():
 from utils import setup_logging
 
 setup_logging()
+
+# Initialize progress tracking when pipeline starts
+def initialize_pipeline_progress(pipeline_type):
+    """Initialize progress tracking for the pipeline."""
+    # Import here to avoid circular imports
+    from web_ui import socketio
+    initialize_progress_tracking(socketio, pipeline_type)
 
 class DatabaseMigrationPipeline(luigi.Task):
     """

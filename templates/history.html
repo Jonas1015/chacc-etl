@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<!--
+Copyright 2025 Jonas G Mwambimbi
+Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+-->
+<html>
+
+<head>
+    <title>Pipeline History - Database ETL Pipeline</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/history.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="theme-toggle">
+                <button onclick="toggleTheme()" class="theme-btn" id="theme-toggle">🌙 Dark Mode</button>
+            </div>
+            <h1>Pipeline Execution History</h1>
+            <p>Track and monitor all pipeline runs with detailed execution information</p>
+        </div>
+
+        <div class="nav-links">
+            <a href="/" class="button secondary">← Back to Pipeline</a>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_count if filters.pipeline_type or filters.date_from or filters.date_to or filters.status else stats.total_runs }}</div>
+                <div class="stat-label">{{ 'Filtered Runs' if filters.pipeline_type or filters.date_from or filters.date_to or filters.status else 'Total Runs' }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.success_rate }}%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.avg_duration }}s</div>
+                <div class="stat-label">Avg Duration</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.last_run[:16].replace('T', ' ') if stats.last_run else 'Never' }}</div>
+                <div class="stat-label">Last Run</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <form method="GET" class="filters-form">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="pipeline_type">Pipeline Type:</label>
+                        <select name="pipeline_type" id="pipeline_type">
+                            <option value="">All Types</option>
+                            {% for pt in pipeline_types %}
+                            <option value="{{ pt.action }}" {{ 'selected' if pt.action == filters.pipeline_type else '' }}>{{ pt.pipeline_type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="date_from">From Date:</label>
+                        <input type="date" name="date_from" id="date_from" value="{{ filters.date_from }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="date_to">To Date:</label>
+                        <input type="date" name="date_to" id="date_to" value="{{ filters.date_to }}">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="status">Status:</label>
+                        <select name="status" id="status">
+                            <option value="">All Status</option>
+                            <option value="success" {{ 'selected' if filters.status == 'success' else '' }}>Success</option>
+                            <option value="failed" {{ 'selected' if filters.status == 'failed' else '' }}>Failed</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="per_page">Per Page:</label>
+                        <select name="per_page" id="per_page">
+                            <option value="10" {{ 'selected' if per_page == 10 else '' }}>10</option>
+                            <option value="25" {{ 'selected' if per_page == 25 else '' }}>25</option>
+                            <option value="50" {{ 'selected' if per_page == 50 else '' }}>50</option>
+                            <option value="100" {{ 'selected' if per_page == 100 else '' }}>100</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button type="submit" class="button">Filter</button>
+                        <a href="/history" class="button secondary">Clear</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- History Table -->
+        <div class="history-section">
+            <div class="history-header">
+                <h3>Execution History</h3>
+                <div class="history-controls">
+                    <button onclick="clearHistory()" class="button danger small">Clear History</button>
+                </div>
+            </div>
+
+            {% if history %}
+            <div class="history-table-container">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Pipeline Type</th>
+                            <th>Start Time</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                        {% for execution in history %}
+                        <tr class="execution-row {{ 'success' if execution.success else 'failed' }}">
+                            <td>{{ execution.id }}</td>
+                            <td>{{ execution.pipeline_type }}</td>
+                            <td>{{ execution.start_time[:19].replace('T', ' ') if execution.start_time else 'N/A' }}</td>
+                            <td>{{ "%.1f"|format(execution.duration_seconds) }}s</td>
+                            <td>
+                                <span class="status-badge {{ 'success' if execution.success else 'failed' }}">
+                                    {{ 'Success' if execution.success else 'Failed' }}
+                                </span>
+                            </td>
+                            <td class="result-cell">
+                                {% if execution.result %}
+                                    <div class="result-preview">{{ execution.result[:100] }}{% if execution.result|length > 100 %}...{% endif %}</div>
+                                {% else %}
+                                    <em>No details</em>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <div class="pagination">
+                    <div class="pagination-info">
+                        Showing {{ ((page - 1) * per_page) + 1 }} to {{ min(page * per_page, total_count) }} of {{ total_count }} entries
+                    </div>
+                    <div class="pagination-controls">
+                        {% if page > 1 %}
+                        <a href="{{ url_for('history', page=page-1, per_page=per_page, pipeline_type=filters.pipeline_type, date_from=filters.date_from, date_to=filters.date_to, status=filters.status) }}" class="pagination-btn">Previous</a>
+                        {% endif %}
+
+                        {% set start_page = max(1, page - 2) %}
+                        {% set end_page = min(total_pages, page + 2) %}
+
+                        {% if start_page > 1 %}
+                        <a href="{{ url_for('history', page=1, per_page=per_page, pipeline_type=filters.pipeline_type, date_from=filters.date_from, date_to=filters.date_to, status=filters.status) }}" class="pagination-btn">1</a>
+                        {% if start_page > 2 %}
+                        <span class="pagination-ellipsis">...</span>
+                        {% endif %}
+                        {% endif %}
+
+                        {% for p in range(start_page, end_page + 1) %}
+                        <a href="{{ url_for('history', page=p, per_page=per_page, pipeline_type=filters.pipeline_type, date_from=filters.date_from, date_to=filters.date_to, status=filters.status) }}"
+                           class="pagination-btn {{ 'active' if p == page else '' }}">{{ p }}</a>
+                        {% endfor %}
+
+                        {% if end_page < total_pages %}
+                        {% if end_page < total_pages - 1 %}
+                        <span class="pagination-ellipsis">...</span>
+                        {% endif %}
+                        <a href="{{ url_for('history', page=total_pages, per_page=per_page, pipeline_type=filters.pipeline_type, date_from=filters.date_from, date_to=filters.date_to, status=filters.status) }}" class="pagination-btn">{{ total_pages }}</a>
+                        {% endif %}
+
+                        {% if page < total_pages %}
+                        <a href="{{ url_for('history', page=page+1, per_page=per_page, pipeline_type=filters.pipeline_type, date_from=filters.date_from, date_to=filters.date_to, status=filters.status) }}" class="pagination-btn">Next</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <h3>No Pipeline History</h3>
+                <p>Pipeline executions will appear here once you run some pipelines.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="footer">
+            <p>Open-source Simple ETL Tool -> <a href="https://github.com/jonas1015/" target="_blank">&copy;Developer</a></p>
+        </div>
+    </div>
+</body>
+
+<script type="module" src="{{ url_for('static', filename='js/script.js')}}"></script>
+<script src="{{ url_for('static', filename='js/history.js')}}"></script>
+<script>
+function clearHistory() {
+    if (confirm('Are you sure you want to clear all pipeline history? This action cannot be undone.')) {
+        fetch('/clear-history', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Failed to clear history: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error clearing history: ' + error.message);
+            });
+    }
+}
+</script>
+
+</html>

@@ -32,6 +32,9 @@ Licensed under the Apache License, Version 2.0 (the "License");
             <a href="/json-editor" class="button tool-btn" style="text-decoration: none; text-align: center;">
                 JSON Editor
             </a>
+            <a href="/history" class="button tool-btn" style="text-decoration: none; text-align: center;">
+                Pipeline History
+            </a>
             <a href="/upload" class="button secondary tool-btn" style="text-decoration: none; text-align: center;">
                 Upload Files
             </a>
@@ -41,18 +44,37 @@ Licensed under the Apache License, Version 2.0 (the "License");
             </a>
         </div>
 
-        <form method="post">
+        <form method="post" id="pipeline-form">
             <div class="button-grid">
-                <button class="button" name="action" value="full_refresh" type="submit">Full Refresh</button>
-                <button class="button" name="action" value="incremental" type="submit">Incremental Update</button>
-                <button class="button" name="action" value="scheduled" type="submit">Scheduled Run</button>
-                <button class="button danger" name="action" value="force_refresh" type="submit">Force Full
+                <button class="button" name="action" value="full_refresh" type="submit" id="full_refresh_btn">Full Refresh</button>
+                <button class="button" name="action" value="incremental" type="submit" id="incremental_btn">Incremental Update</button>
+                <button class="button" name="action" value="scheduled" type="button" id="scheduled_btn" onclick="showScheduledModal()">Scheduled Run</button>
+                <button class="button danger" name="action" value="force_refresh" type="submit" id="force_refresh_btn">Force Full
                     Refresh</button>
                 <a href="http://localhost:8082" target="_blank" class="button secondary"
                     style="text-decoration: none; text-align: center; line-height: 1.2;">Luigi Visualizer</a>
             </div>
         </form>
 
+        <!-- Scheduled Run Modal -->
+        <div id="scheduled-modal" class="modal" style="display: none;">
+            <div class="modal-overlay" onclick="closeScheduledModal()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Select Scheduled Run Type</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Choose the type of scheduled pipeline to run:</p>
+                    <div class="modal-buttons">
+                        <button class="button" onclick="runScheduled('incremental')">Incremental Update</button>
+                        <button class="button" onclick="runScheduled('full')">Full Refresh</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="button secondary" onclick="closeScheduledModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
         {% if status %}
         <div
             class="status {{ 'success' if 'successfully' in status.lower() else 'error' if 'error' in status.lower() or 'failed' in status.lower() else 'info' }}">
@@ -60,6 +82,25 @@ Licensed under the Apache License, Version 2.0 (the "License");
             <pre>{{ status }}</pre>
         </div>
         {% endif %}
+        
+        <div id="progress-section" class="progress-section" style="display: none;">
+            <h3>Pipeline Progress</h3>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progress-percent">0%</span>
+                </div>
+            </div>
+            <div class="progress-message" id="progress-message">Initializing...</div>
+            <div class="progress-status" id="progress-status"></div>
+        </div>
+
+        <div id="status-panel" class="status-panel" style="display: none;">
+            <h3>Pipeline Status</h3>
+            <div class="status-content" id="status-content"></div>
+        </div>
 
         <div class="footer">
             <p>Open-source Simple ETL Tool -> <a href="https://github.com/jonas1015/" target="_blank">&copy;Developer</a></p>
@@ -67,6 +108,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
     </div>
 </body>
 
-<script src="{{ url_for('static', filename='js/script.js')}}"></script>
+<script src="{{ url_for('static', filename='js/socket.io.min.js')}}"></script>
+<script type="module" src="{{ url_for('static', filename='js/script.js')}}"></script>
 
 </html>

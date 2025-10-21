@@ -89,7 +89,7 @@ def create_dynamic_tasks():
                     task_name = self.__class__.__name__
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name.lower()}_completed.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
                         self.update_status('running')
@@ -142,7 +142,7 @@ def create_dynamic_tasks():
                     task_name = self.__class__.__name__
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name.lower()}_completed.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
                         self.update_status('running')
@@ -188,7 +188,7 @@ def create_dynamic_tasks():
                     task_name_lower = self.__class__.__name__.lower()
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_completed.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
 
@@ -287,7 +287,7 @@ def create_dynamic_tasks():
                     task_name_lower = self.__class__.__name__.lower()
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_completed.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
 
@@ -359,7 +359,7 @@ def create_dynamic_tasks():
                     task_name_lower = self.__class__.__name__.lower()
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_created.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
 
@@ -387,7 +387,7 @@ def create_dynamic_tasks():
                     task_name_lower = self.__class__.__name__.lower()
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_created.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
                         print(f"[{self.__class__.__name__}] Starting summary table creation")
@@ -437,7 +437,7 @@ def create_dynamic_tasks():
                     task_name_lower = self.__class__.__name__.lower()
                     return luigi.LocalTarget(os.path.join(DATA_DIR, f'{task_name_lower}_completed.txt'))
 
-                def run(self):
+                def execute_task(self):
                     try:
                         log_task_start(self)
 
