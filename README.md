@@ -46,7 +46,39 @@ luigi-etl/
 
 ## ⚙️ Installation & Setup
 
-### 1. Environment Setup
+### Docker Deployment (Recommended)
+
+The easiest way to run the Luigi ETL Pipeline is using Docker with production-ready WSGI server:
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/luigi-etl-pipeline.git
+cd luigi-etl-pipeline
+
+# Copy environment file and configure
+cp .env.example .env
+# Edit .env with your database credentials
+
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f chacc-etl-ui
+```
+
+**Production Features:**
+- **Gunicorn WSGI server** with 4 workers for high performance
+- **Supervisor process manager** for reliability
+- **WebSocket support** with gevent workers
+- **Health checks** and automatic restarts
+
+**Access Points:**
+- **Web UI**: http://localhost:5000
+- **Luigi Visualizer**: http://localhost:8082
+- **MySQL**: localhost:3306
+- **Redis**: localhost:6379
+
+### Manual Installation
 
 ```bash
 # Create virtual environment
@@ -84,7 +116,28 @@ TARGET_DB_PORT=3306
 
 ## 🏃 Usage & Execution
 
-### Full Migration (Initial Setup)
+### Docker Commands
+
+```bash
+# Start services
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f chacc-etl-ui
+
+# Rebuild and restart
+docker-compose up -d --build
+
+# Run pipeline via web UI
+# Open http://localhost:5000 and click pipeline buttons
+```
+
+### Manual Execution
+
+#### Full Migration (Initial Setup)
 
 Creates the database, tables, and loads all data:
 
@@ -92,7 +145,7 @@ Creates the database, tables, and loads all data:
 python scripts/run_pipeline.py --full-refresh
 ```
 
-### Incremental Migration (Updates)
+#### Incremental Migration (Updates)
 
 Processes only new/changed data based on watermarks:
 
@@ -100,7 +153,7 @@ Processes only new/changed data based on watermarks:
 python scripts/run_pipeline.py --incremental
 ```
 
-### Custom Options
+#### Custom Options
 
 ```bash
 # Force complete rerun
@@ -111,6 +164,21 @@ python scripts/run_pipeline.py --full-refresh --central-scheduler
 
 # Multiple workers
 python scripts/run_pipeline.py --full-refresh --workers 4
+```
+
+### Deployment Scripts
+
+For production deployment:
+
+```bash
+# Build and deploy locally
+./scripts/deploy/deploy.sh deploy
+
+# Build image only
+./scripts/deploy/deploy.sh build
+
+# Push to Docker Hub
+./scripts/deploy/deploy.sh push
 ```
 
 ## 📋 Task Configuration
@@ -156,7 +224,65 @@ Example task definition:
 - `observation_summary` - Observation analytics
 - `location_summary` - Location-based metrics
 
+## 🐳 Docker Deployment
+
+### Production Setup
+
+1. **Clone and configure**:
+   ```bash
+   git clone https://github.com/yourusername/luigi-etl-pipeline.git
+   cd luigi-etl-pipeline
+   cp .env.example .env
+   # Edit .env with production database credentials
+   ```
+
+2. **Production deployment**:
+   ```bash
+   # Use production compose file
+   docker-compose -f scripts/deploy/docker-compose.prod.yml up -d
+
+   # Or use deployment script
+   ./scripts/deploy/deploy.sh deploy
+   ```
+
+3. **Environment variables** for production:
+   ```bash
+   DOCKER_IMAGE=your-registry/luigi-etl-pipeline
+   DOCKER_TAG=v1.0.0
+   WEB_PORT=80
+   MYSQL_PORT=3306
+   REDIS_PORT=6379
+   ```
+
+### CI/CD Pipeline
+
+The project includes GitHub Actions for automated:
+- **Testing**: Runs on every push/PR
+- **Building**: Creates Docker images
+- **Publishing**: Pushes to Docker Hub on releases
+
+**Required secrets** for Docker Hub publishing:
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
 ## 🐛 Troubleshooting
+
+### Docker Issues
+
+**Container won't start**:
+```bash
+docker-compose logs chacc-etl-ui
+```
+
+**Database connection issues**:
+```bash
+docker-compose exec mysql mysql -u root -p
+```
+
+**Permission issues**:
+```bash
+sudo chown -R $USER:$USER .
+```
 
 ### Common Issues
 
@@ -175,7 +301,28 @@ Enable debug logging:
 export LUIGI_LOG_LEVEL=DEBUG
 ```
 
+**Docker debug mode**:
+```bash
+docker-compose up  # Without -d to see logs
+```
+
 ## 👩‍💻 Development
+
+### Local Development with Docker
+
+```bash
+# Start development environment
+docker-compose up -d
+
+# View application logs
+docker-compose logs -f chacc-etl-ui
+
+# Access containers
+docker-compose exec chacc-etl-ui bash
+
+# Stop environment
+docker-compose down
+```
 
 ### Adding New Tasks
 
@@ -192,6 +339,40 @@ export LUIGI_LOG_LEVEL=DEBUG
 - **flattened**: Data denormalization
 - **summary**: Aggregated reporting tables
 
+### Docker Development Workflow
+
+```bash
+# Build custom image for development
+docker build -t luigi-etl-dev .
+
+# Run with volume mounts for live code changes
+docker run -v $(pwd):/app -p 5000:5000 luigi-etl-dev
+
+# Or use docker-compose.override.yml for development
+echo 'version: "3.8"
+services:
+  chacc-etl-ui:
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development' > docker-compose.override.yml
+```
+
 ## 📜 License
 
 This project is licensed under the **Apache License 2.0** — see the [LICENSE](./LICENSE.txt) file for details.
+
+---
+
+## 🚀 Quick Start with Docker
+
+```bash
+git clone https://github.com/yourusername/luigi-etl-pipeline.git
+cd luigi-etl-pipeline
+cp .env.example .env
+# Edit .env file with your database credentials
+docker-compose up -d
+# Open http://localhost:5000
+```
+
+**That's it!** Your ETL pipeline with web UI is now running in Docker containers.

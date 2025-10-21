@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  chacc-etl:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - PYTHONPATH=/app
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    depends_on:
+      - luigi-scheduler
+      - mysql
+    networks:
+      - chacc-rtl-network
+    restart: unless-stopped
+
+  luigi-scheduler:
+    image: spotify/luigi:latest
+    command: luigid --background --logdir /var/log/luigi
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./logs:/var/log/luigi
+    environment:
+      - LUIGI_CONFIG_PATH=/app/config/luigi_config.py
+    networks:
+      - chacc-rtl-network
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-chacc_etl_db}
+      MYSQL_USER: ${MYSQL_USER:-chacc_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chacc_etl_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    networks:
+      - chacc-rtl-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chacc-rtl-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  chacc-rtl-network:
+    driver: bridge

@@ -40,7 +40,6 @@ function closeDeleteModal() {
     }
 }
 
-// Scheduled Run Modal Functions
 function showScheduledModal() {
     const modal = document.getElementById('scheduled-modal');
     modal.style.display = 'block';
@@ -54,7 +53,6 @@ function closeScheduledModal() {
 function runScheduled(type) {
     closeScheduledModal();
 
-    // Create a form to submit the scheduled request
     const form = document.createElement('form');
     form.method = 'POST';
     form.style.display = 'none';
@@ -69,7 +67,6 @@ function runScheduled(type) {
     form.submit();
 }
 
-// Close modal on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeDeleteModal();

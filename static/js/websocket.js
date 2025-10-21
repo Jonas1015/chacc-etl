@@ -9,7 +9,6 @@ function initializeWebSocket() {
 
     socket.on('connect', function() {
         console.log('Connected to server');
-        // Request current status when connected
         socket.emit('get_status');
     });
 
@@ -22,12 +21,11 @@ function initializeWebSocket() {
         console.log('Disconnected from server');
     });
 
-    // Request status periodically to ensure we catch running pipelines
     setInterval(function() {
         if (socket.connected) {
             socket.emit('get_status');
         }
-    }, 5000); // Check every 5 seconds
+    }, 5000);
 }
 
 function updateProgress(data) {
@@ -35,9 +33,7 @@ function updateProgress(data) {
     const statusPanel = document.getElementById('status-panel');
     const statusContent = document.getElementById('status-content');
 
-    // Handle running pipeline
     if (data.running) {
-        // Hide status panel and show progress section
         statusPanel.style.display = 'none';
         progressSection.style.display = 'block';
 
@@ -46,18 +42,15 @@ function updateProgress(data) {
         const progressMessage = document.getElementById('progress-message');
         const progressStatus = document.getElementById('progress-status');
 
-        // Update progress bar
         if (data.progress !== undefined) {
             progressFill.style.width = data.progress + '%';
             progressPercent.textContent = data.progress + '%';
         }
 
-        // Update message
         if (data.message) {
             progressMessage.textContent = data.message;
         }
 
-        // Update status/result
         if (data.result) {
             progressStatus.textContent = data.result;
             progressStatus.className = 'progress-status';
@@ -71,11 +64,9 @@ function updateProgress(data) {
             }
         }
     } else {
-        // Pipeline not running - hide progress and show status if there's a result
         progressSection.style.display = 'none';
 
         if (data.result) {
-            // Show status panel with final result
             statusPanel.style.display = 'block';
             statusContent.textContent = data.result;
             statusContent.className = 'status-content';
@@ -88,12 +79,10 @@ function updateProgress(data) {
                 statusContent.classList.add('info');
             }
         } else {
-            // No result to show, hide status panel
             statusPanel.style.display = 'none';
         }
     }
 
-    // Disable/enable buttons based on running state
     const buttons = ['full_refresh_btn', 'incremental_btn', 'scheduled_btn', 'force_refresh_btn'];
     buttons.forEach(btnId => {
         const btn = document.getElementById(btnId);

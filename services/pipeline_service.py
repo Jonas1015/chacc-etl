@@ -17,7 +17,10 @@ import time
 def get_optimal_worker_count():
     """Get optimal number of workers based on CPU cores."""
     num_cores = multiprocessing.cpu_count()
-    return max(1, num_cores - 1)
+    if num_cores == 1:
+        return 1
+    else:
+        return max(1, num_cores // 2)
 
 
 def build_pipeline_command(action, workers):
@@ -88,7 +91,7 @@ def get_pipeline_result(process, task_name):
     if success:
         # Even if return code is 0, check if there were actual errors in output
         error_indicators = ['ERROR', 'FAILED', 'Exception', 'Traceback', 'error', 'failed']
-        success_indicators = ['completed successfully', 'pipeline completed', 'successfully']
+        success_indicators = ['completed successfully', 'pipeline completed', 'successfully', 'This progress looks :)']
 
         has_errors = any(error in stdout or error in stderr for error in error_indicators)
         has_success = any(success_text in stdout.lower() for success_text in success_indicators)

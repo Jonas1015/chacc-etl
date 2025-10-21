@@ -23,9 +23,11 @@ document.addEventListener('DOMContentLoaded', function () {
         themeBtn.textContent = '🌙 Dark Mode';
     }
 
-    initializeWebSocket();
+    if (typeof initializeWebSocket === 'function') {
+        initializeWebSocket();
+    }
 
-    if (document.getElementById('file-table')) {
+    if (typeof initializeFileTable === 'function' && document.getElementById('file-table')) {
         initializeFileTable();
     }
 });

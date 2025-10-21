@@ -173,6 +173,18 @@ Licensed under the Apache License, Version 2.0 (the "License");
 }
 
 .execution-row.success {
+    background-color: transparent !important;
+}
+
+.execution-row.success:hover {
+    background-color: rgba(0, 123, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .execution-row.success:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.execution-row.success {
     border-left: 4px solid var(--success-bg);
 }
 

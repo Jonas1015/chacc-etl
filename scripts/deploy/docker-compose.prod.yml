@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  chacc-etl-ui:
+    image: ${DOCKER_IMAGE:-jonas1015/luigi-etl-pipeline}:${DOCKER_TAG:-latest}
+    container_name: luigi-etl-web-ui
+    ports:
+      - "${WEB_PORT:-5000}:5000"
+    environment:
+      - FLASK_ENV=production
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    depends_on:
+      - luigi-scheduler
+      - mysql
+      - redis
+    networks:
+      - luigi-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  luigi-scheduler:
+    image: spotify/luigi:latest
+    container_name: luigi-scheduler
+    command: luigid --background --logdir /var/log/luigi
+    ports:
+      - "${LUIGI_PORT:-8082}:8082"
+    volumes:
+      - ./logs:/var/log/luigi
+      - ./config/luigi_config.py:/app/config/luigi_config.py:ro
+    environment:
+      - LUIGI_CONFIG_PATH=/app/config/luigi_config.py
+    networks:
+      - luigi-network
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: luigi-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-luigi_db}
+      MYSQL_USER: ${MYSQL_USER:-luigi_user}
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    secrets:
+      - mysql_root_password
+      - mysql_password
+    networks:
+      - luigi-network
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+
+  redis:
+    image: redis:7-alpine
+    container_name: luigi-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - luigi-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  nginx:
+    image: nginx:alpine
+    container_name: luigi-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - chacc-etl-ui
+    networks:
+      - luigi-network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+
+networks:
+  luigi-network:
+    driver: bridge
