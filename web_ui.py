@@ -54,6 +54,29 @@ def index():
             last_pending = get_last_pending_execution()
             if last_pending:
                 update_pipeline_status(last_pending['id'], 'interrupted', result="Interrupted by new pipeline execution")
+        elif action == 'force_refresh' and current_progress.get('running', False):
+            # Set interruption flag for running pipelines
+            try:
+                from utils.db_utils import get_target_db_connection
+                with get_target_db_connection() as conn:
+                    cursor = conn.cursor()
+                    import json
+                    interruption_data = {
+                        "interruption_requested": True,
+                        "requested_by": "web_ui",
+                        "reason": "Force refresh requested",
+                        "requested_at": time.time()
+                    }
+                    cursor.execute("""
+                        UPDATE pipeline_history
+                        SET status = 'interrupting',
+                            result = %s
+                        WHERE status IN ('pending', 'running')
+                    """, (json.dumps(interruption_data),))
+                    conn.commit()
+                    print("Set interruption flag for running pipelines")
+            except Exception as e:
+                print(f"Failed to set interruption flag: {e}")
 
         pipeline_start_time = current_progress.get('pipeline_start_time', time.time())
         pipeline_type = current_progress.get('pipeline_type', action)

@@ -142,7 +142,17 @@ Licensed under the Apache License, Version 2.0 (the "License");
                                 </span>
                             </td>
                             <td class="result-cell">
-                                {% if execution.result %}
+                                {% if execution.total_tasks %}
+                                    <div class="task-summary">
+                                        <strong>{{ execution.completed_tasks or 0 }}/{{ execution.total_tasks }}</strong> tasks completed
+                                        {% if execution.failed_tasks and execution.failed_tasks > 0 %}
+                                            <br><small class="text-danger">{{ execution.failed_tasks }} failed</small>
+                                        {% endif %}
+                                        {% if execution.interrupted_tasks and execution.interrupted_tasks > 0 %}
+                                            <br><small class="text-warning">{{ execution.interrupted_tasks }} interrupted</small>
+                                        {% endif %}
+                                    </div>
+                                {% elif execution.result %}
                                     <div class="result-preview">{{ execution.result[:100] }}{% if execution.result|length > 100 %}...{% endif %}</div>
                                 {% else %}
                                     <em>No details</em>

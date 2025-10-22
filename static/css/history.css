@@ -268,6 +268,23 @@ Licensed under the Apache License, Version 2.0 (the "License");
     word-break: break-word;
 }
 
+.task-summary {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.task-summary strong {
+    color: var(--text-color);
+}
+
+.text-danger {
+    color: var(--error-text);
+}
+
+.text-warning {
+    color: #fd7e14;
+}
+
 /* Empty State */
 .empty-state {
     text-align: center;

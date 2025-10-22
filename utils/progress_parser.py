@@ -176,7 +176,21 @@ def get_current_progress() -> Dict:
                     elif pending_tasks > 0:
                         final_status = 'pending'
                     elif failed_tasks > 0:
-                        final_status = 'failed'
+                        # Check if failure was due to interruption
+                        try:
+                            from utils.db_utils import get_target_db_connection
+                            with get_target_db_connection() as conn:
+                                cursor = conn.cursor()
+                                cursor.execute("""
+                                    SELECT result FROM pipeline_history
+                                    WHERE id = %s AND status = 'interrupted'
+                                """, (last_pending['id'],))
+                                if cursor.fetchone():
+                                    final_status = 'interrupted'
+                                else:
+                                    final_status = 'failed'
+                        except:
+                            final_status = 'failed'
                     else:
                         final_status = 'done'
 

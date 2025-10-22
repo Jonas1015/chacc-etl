@@ -180,6 +180,103 @@ def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, d
             cursor = conn.cursor(pymysql.cursors.DictCursor)
 
             query = """
+                SELECT ph.id, ph.action, ph.pipeline_type, ph.start_time, ph.end_time,
+                       ph.duration_seconds, ph.success, ph.status, ph.result, ph.created_at,
+                       COUNT(pth.id) as total_tasks,
+                       SUM(CASE WHEN pth.status = 'completed' THEN 1 ELSE 0 END) as completed_tasks,
+                       SUM(CASE WHEN pth.status = 'failed' THEN 1 ELSE 0 END) as failed_tasks,
+                       SUM(CASE WHEN pth.status = 'interrupted' THEN 1 ELSE 0 END) as interrupted_tasks
+                FROM chacc_pipeline_history ph
+                LEFT JOIN pipeline_task_history pth ON ph.id = pth.pipeline_history_id
+                WHERE 1=1
+            """
+            params = []
+
+            if pipeline_type:
+                query += " AND ph.action = %s"
+                params.append(pipeline_type)
+
+            if date_from:
+                query += " AND DATE(ph.start_time) >= %s"
+                params.append(date_from)
+
+            if date_to:
+                query += " AND DATE(ph.start_time) <= %s"
+                params.append(date_to)
+
+            if success is not None:
+                query += " AND ph.success = %s"
+                params.append(success)
+
+            if status:
+                query += " AND ph.status = %s"
+                params.append(status)
+
+            query += " GROUP BY ph.id ORDER BY ph.created_at DESC LIMIT %s OFFSET %s"
+            params.extend([limit, offset])
+
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+
+            for result in results:
+                result['timestamp'] = result['created_at'].isoformat() if result['created_at'] else None
+                result['start_time'] = result['start_time'].isoformat() if result['start_time'] else None
+                result['end_time'] = result['end_time'].isoformat() if result['end_time'] else None
+
+            return results
+
+    except Exception as e:
+        print(f"Error retrieving pipeline history: {e}")
+        return []
+
+
+def get_pipeline_task_history(pipeline_history_id):
+    """Get all tasks that ran in a specific pipeline execution."""
+    try:
+        try:
+            from utils.db_utils import get_target_db_connection
+        except ImportError:
+            print("Database utils not available, returning empty task history")
+            return []
+
+        with get_target_db_connection() as conn:
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+            cursor.execute("""
+                SELECT id, task_name, task_type, status, start_time, end_time,
+                       duration_seconds, error_message, records_processed, created_at
+                FROM pipeline_task_history
+                WHERE pipeline_history_id = %s
+                ORDER BY start_time ASC
+            """, (pipeline_history_id,))
+
+            results = cursor.fetchall()
+
+            for result in results:
+                result['start_time'] = result['start_time'].isoformat() if result['start_time'] else None
+                result['end_time'] = result['end_time'].isoformat() if result['end_time'] else None
+                result['created_at'] = result['created_at'].isoformat() if result['created_at'] else None
+
+            return results
+
+    except Exception as e:
+        print(f"Error retrieving pipeline task history: {e}")
+        return []
+
+
+def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, date_to=None, success=None, status=None):
+    """Get recent pipeline execution history from database with filtering and pagination."""
+    try:
+        try:
+            from utils.db_utils import get_target_db_connection
+        except ImportError:
+            print("Database utils not available, returning empty history")
+            return []
+
+        with get_target_db_connection() as conn:
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+            query = """
                 SELECT id, action, pipeline_type, start_time, end_time,
                        duration_seconds, success, status, result, created_at
                 FROM chacc_pipeline_history

@@ -460,4 +460,41 @@ def create_dynamic_tasks():
         deps = task_config.get('dependencies', [])
         task_class.requires = lambda self, deps=deps, tasks=dynamic_tasks: [tasks[dep]() for dep in deps if dep in tasks]
 
+        if hasattr(task_class, 'execute_task'):
+            original_execute_task = task_class.execute_task
+
+            def execute_task_with_interruption_check(self, original_method=original_execute_task):
+                """Wrap execute_task to check for interruptions periodically."""
+                import time
+                last_check = time.time()
+
+                if not hasattr(self, '_original_execute_task'):
+                    self._original_execute_task = original_method
+
+                try:
+                    return self._original_execute_task()
+                except Exception as e:
+                    interrupted, reason = self.check_interruption()
+                    if interrupted:
+                        print(f"[{self.__class__.__name__}] Task interrupted: {reason}")
+                        try:
+                            with self.get_db_connection() as conn:
+                                cursor = conn.cursor()
+                                import json
+                                cursor.execute("""
+                                    UPDATE pipeline_history
+                                    SET status = 'interrupted',
+                                        result = JSON_SET(COALESCE(result, '{}'), '$.interruption_acknowledged', true)
+                                    WHERE status = 'interrupting'
+                                """)
+                                conn.commit()
+                        except Exception as update_e:
+                            print(f"[{self.__class__.__name__}] Failed to acknowledge interruption: {update_e}")
+                        from tasks.base_tasks import InterruptedException
+                        raise InterruptedException(f"Pipeline interrupted: {reason}")
+                    else:
+                        raise
+
+            task_class.execute_task = execute_task_with_interruption_check
+
     return dynamic_tasks
