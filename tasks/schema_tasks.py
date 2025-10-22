@@ -20,10 +20,10 @@ def read_sql_file(filepath):
         return f.read().strip()
 
 def update_task_status(conn, task_name, status, error_message=None):
-    """Update task status in etl_metadata table."""
+    """Update task status in chacc_etl_metadata table."""
     try:
         sql = """
-            INSERT INTO etl_metadata (table_name, status, error_message, last_update_timestamp, updated_at)
+            INSERT INTO chacc_etl_metadata (table_name, status, error_message, last_update_timestamp, updated_at)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 status = VALUES(status),

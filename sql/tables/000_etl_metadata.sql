@@ -5,7 +5,7 @@
 
 --         http://www.apache.org/licenses/LICENSE-2.0
 
-CREATE TABLE IF NOT EXISTS etl_metadata (
+CREATE TABLE IF NOT EXISTS chacc_etl_metadata (
     id INT AUTO_INCREMENT PRIMARY KEY,
     table_name VARCHAR(100) NOT NULL,
     last_update_timestamp DATETIME,

@@ -5,7 +5,7 @@
 
 --         http://www.apache.org/licenses/LICENSE-2.0
 
-CREATE TABLE IF NOT EXISTS etl_watermarks (
+CREATE TABLE IF NOT EXISTS chacc_etl_watermarks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     source_table VARCHAR(100) NOT NULL,
     target_table VARCHAR(100) NOT NULL,

@@ -16,6 +16,31 @@ def run_pipeline_async(action, socketio, task_status):
     """Run pipeline in background thread with progress updates"""
     start_time = time.time()
 
+    if action == 'force_refresh':
+        try:
+            import psutil
+            import signal
+            current_process = psutil.Process()
+            parent = current_process.parent()
+
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    if proc.info['name'] and 'python' in proc.info['name'].lower():
+                        cmdline = proc.info.get('cmdline', [])
+                        if cmdline and 'run_pipeline.py' in ' '.join(cmdline):
+                            print(f"Terminating existing pipeline process: {proc.info['pid']}")
+                            proc.terminate()
+                            try:
+                                proc.wait(timeout=5)
+                            except psutil.TimeoutExpired:
+                                proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        except ImportError:
+            print("psutil not available, cannot terminate existing processes")
+        except Exception as e:
+            print(f"Error terminating existing processes: {e}")
+
     try:
         task_status.update({
             'running': True,
@@ -26,7 +51,6 @@ def run_pipeline_async(action, socketio, task_status):
         })
         socketio.emit('task_update', task_status)
 
-        # Send initial progress update to show the UI
         initial_progress = {
             'running': True,
             'progress': 5,
@@ -45,8 +69,11 @@ def run_pipeline_async(action, socketio, task_status):
         else:
             task_name = action.replace('_', ' ').title() + " Pipeline"
 
-        from services.progress_service import initialize_progress_tracking
-        initialize_progress_tracking(socketio, action)
+        from utils.progress_parser import initialize_progress_tracking as init_parser_progress
+        init_parser_progress(action)
+
+        if action == 'force_refresh':
+            time.sleep(2)
 
         from services.pipeline_service import execute_pipeline
         process = execute_pipeline(action, socketio)
@@ -98,12 +125,11 @@ def run_pipeline_async(action, socketio, task_status):
                     except (AttributeError, ImportError):
                         pass
 
-                # Send periodic heartbeat updates if no progress for 3 seconds
                 if current_time - last_update_time > 3:
                     elapsed = current_time - start_time
                     heartbeat_progress = {
                         'running': True,
-                        'progress': min(90, 10 + int(elapsed / 10)),  # Slow progress indication
+                        'progress': min(90, 10 + int(elapsed / 10)),
                         'message': f"Pipeline running... ({int(elapsed)}s elapsed)",
                         'current_task': action.replace('_', ' ').title()
                     }
@@ -117,16 +143,15 @@ def run_pipeline_async(action, socketio, task_status):
 
         process.wait()
 
-        from services.progress_service import finalize_progress_tracking
-        success = process.returncode == 0
-        finalize_progress_tracking(success)
-
+        
         from services.pipeline_service import get_pipeline_result
         result = get_pipeline_result(process, task_name)
         end_time = time.time()
 
         success = "successfully" in result.get('message', '').lower()
+        
         from services.history_service import log_pipeline_execution
+        print("""Logging pipeline execution to history...""", result.get('result', ''))
         log_pipeline_execution(action, start_time, end_time, success, result.get('result', ''))
 
         final_result = {

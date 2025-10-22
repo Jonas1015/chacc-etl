@@ -222,7 +222,7 @@ credentials/
 *.pfx
 
 # ETL specific
-etl_metadata/
+chacc_etl_metadata/
 watermarks/
 *.checkpoint
 *.state

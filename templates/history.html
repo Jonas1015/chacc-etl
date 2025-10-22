@@ -79,6 +79,9 @@ Licensed under the Apache License, Version 2.0 (the "License");
                             <option value="">All Status</option>
                             <option value="success" {{ 'selected' if filters.status == 'success' else '' }}>Success</option>
                             <option value="failed" {{ 'selected' if filters.status == 'failed' else '' }}>Failed</option>
+                            <option value="pending" {{ 'selected' if filters.status == 'pending' else '' }}>Pending</option>
+                            <option value="interrupted" {{ 'selected' if filters.status == 'interrupted' else '' }}>Interrupted</option>
+                            <option value="completed" {{ 'selected' if filters.status == 'completed' else '' }}>Completed</option>
                         </select>
                     </div>
 
@@ -124,14 +127,18 @@ Licensed under the Apache License, Version 2.0 (the "License");
                     </thead>
                     <tbody id="history-tbody">
                         {% for execution in history %}
-                        <tr class="execution-row {{ 'success' if execution.success else 'failed' }}">
-                            <td>{{ execution.id }}</td>
+                        <tr class="execution-row {{ 'success' if execution.success else 'failed' if execution.status == 'failed' else 'done' if execution.status == 'done' else 'interrupted' if execution.status == 'interrupted' else 'pending' }}">
+                            <td>
+                                <div class="id-cell">
+                                    {{ execution.id }}
+                                </div>
+                            </td>
                             <td>{{ execution.pipeline_type }}</td>
                             <td>{{ execution.start_time[:19].replace('T', ' ') if execution.start_time else 'N/A' }}</td>
-                            <td>{{ "%.1f"|format(execution.duration_seconds) }}s</td>
+                            <td>{{ "%.1f"|format(execution.duration_seconds) if execution.duration_seconds else 'N/A' }}s</td>
                             <td>
-                                <span class="status-badge {{ 'success' if execution.success else 'failed' }}">
-                                    {{ 'Success' if execution.success else 'Failed' }}
+                                <span class="status-badge {{ 'success' if execution.success else 'failed' if execution.status in ['failed', 'unknown'] else 'done' if execution.status == 'done' else 'interrupted' if execution.status == 'interrupted' else 'pending' if execution.status == 'pending' else 'info' }}">
+                                    {{ 'Success' if execution.success else 'Failed' if execution.status in ['failed', 'unknown'] else 'Done' if execution.status == 'done' else 'Interrupted' if execution.status == 'interrupted' else 'Pending' if execution.status == 'pending' else 'Unknown' }}
                                 </span>
                             </td>
                             <td class="result-cell">

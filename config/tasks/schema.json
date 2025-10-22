@@ -17,6 +17,12 @@
       "dependencies": ["InitCreateDatabaseTask"],
       "sql": "sql/tables/001_etl_watermarks.sql",
       "description": "Create ETL watermarks table for incremental loads"
+    },
+    "TablesPipelineHistoryTask": {
+      "type": "schema",
+      "dependencies": ["InitCreateDatabaseTask"],
+      "sql": "sql/tables/003_pipeline_history.sql",
+      "description": "Create pipeline execution history table"
     }
   }
 }

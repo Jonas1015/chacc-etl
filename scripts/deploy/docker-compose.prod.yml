@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   chacc-etl-ui:
-    image: ${DOCKER_IMAGE:-jonas1015/luigi-etl-pipeline}:${DOCKER_TAG:-latest}
+    image: ${DOCKER_IMAGE:-jonas1015/chacc-etl}:${DOCKER_TAG:-latest}
     container_name: luigi-etl-web-ui
     ports:
       - "${WEB_PORT:-5000}:5000"
@@ -17,7 +17,7 @@ services:
     depends_on:
       - luigi-scheduler
       - mysql
-      - redis
+      # - redis
     networks:
       - luigi-network
     restart: unless-stopped
@@ -45,11 +45,11 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: luigi-mysql
+    container_name: chacc-etl-mysql
     environment:
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-luigi_db}
-      MYSQL_USER: ${MYSQL_USER:-luigi_user}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-chacc_etl_db}
+      MYSQL_USER: ${MYSQL_USER:-chacc_etl_user}
       MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -64,17 +64,17 @@ services:
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
 
-  redis:
-    image: redis:7-alpine
-    container_name: luigi-redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - luigi-network
-    restart: unless-stopped
-    command: redis-server --appendonly yes
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: chacc-etl-redis
+  #   ports:
+  #     - "${REDIS_PORT:-6379}:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - luigi-network
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes
 
   nginx:
     image: nginx:alpine
@@ -92,10 +92,10 @@ services:
     restart: unless-stopped
 
 volumes:
-  mysql_data:
-    driver: local
-  redis_data:
-    driver: local
+   mysql_data:
+     driver: local
+   # redis_data:
+   #   driver: local
 
 secrets:
   mysql_root_password:

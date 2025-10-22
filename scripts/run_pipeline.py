@@ -9,7 +9,7 @@
 """
 Database Migration Pipeline Runner Script
 
-This script runs the Luigi ETL pipeline for migrating Source data to analytics database with flattened tables.
+This script runs the ChaCC ETL pipeline for migrating Source data to analytics database with flattened tables.
 
 Usage:
     python scripts/run_pipeline.py [--incremental] [--full-refresh] [--scheduled]

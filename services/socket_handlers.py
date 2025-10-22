@@ -28,42 +28,7 @@ def handle_connect():
         from services.progress_service import get_current_progress
         current_progress = get_current_progress()
 
-        if not current_progress.get('running', False):
-            from web_ui import task_status
-            if HAS_PSUTIL:
-                try:
-                    import os
-                    current_pid = os.getpid()
-
-                    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                        try:
-                            if proc.info['name'] in ['python3', 'python', 'python.exe']:
-                                cmdline = proc.info['cmdline']
-                                if cmdline and len(cmdline) > 1:
-                                    cmdline_str = ' '.join(cmdline)
-                                    if 'run_pipeline.py' in cmdline_str:
-                                        print(f"Detected running pipeline process: {proc.info['pid']} - {cmdline_str}")
-
-                                        pipeline_type = 'Pipeline'
-                                        if '--incremental' in cmdline_str:
-                                            pipeline_type = 'Incremental Pipeline'
-                                        elif '--full-refresh' in cmdline_str:
-                                            pipeline_type = 'Full Refresh Pipeline'
-                                        elif '--scheduled' in cmdline_str:
-                                            pipeline_type = 'Scheduled Pipeline'
-
-                                        current_progress.update({
-                                            'running': True,
-                                            'message': f'{pipeline_type} is currently running...',
-                                            'progress': 50,
-                                            'current_task': pipeline_type
-                                        })
-                                        break
-                        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                            continue
-                except Exception as e:
-                    print(f"Error checking for running pipelines: {e}")
-
+        # Always emit current progress state, whether running or not
         emit('task_update', current_progress)
 
 
@@ -73,42 +38,7 @@ def handle_get_status():
         from services.progress_service import get_current_progress
         current_progress = get_current_progress()
 
-        if not current_progress.get('running', False):
-            from web_ui import task_status
-            if HAS_PSUTIL:
-                try:
-                    import os
-                    current_pid = os.getpid()
-
-                    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-                        try:
-                            if proc.info['name'] in ['python3', 'python', 'python.exe']:
-                                cmdline = proc.info['cmdline']
-                                if cmdline and len(cmdline) > 1:
-                                    cmdline_str = ' '.join(cmdline)
-                                    if 'run_pipeline.py' in cmdline_str and proc.info['pid'] != current_pid:
-                                        print(f"Status check: Detected running pipeline process: {proc.info['pid']} - {cmdline_str}")
-
-                                        pipeline_type = 'Pipeline'
-                                        if '--incremental' in cmdline_str:
-                                            pipeline_type = 'Incremental Pipeline'
-                                        elif '--full-refresh' in cmdline_str:
-                                            pipeline_type = 'Full Refresh Pipeline'
-                                        elif '--scheduled' in cmdline_str:
-                                            pipeline_type = 'Scheduled Pipeline'
-
-                                        current_progress.update({
-                                            'running': True,
-                                            'message': f'{pipeline_type} is currently running...',
-                                            'progress': 50,
-                                            'current_task': pipeline_type
-                                        })
-                                        break
-                        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                            continue
-                except Exception as e:
-                    print(f"Error checking for running pipelines in status: {e}")
-
+        # Always emit current progress state
         emit('task_update', current_progress)
 
 

@@ -49,19 +49,9 @@ services:
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - chacc-rtl-network
-    restart: unless-stopped
 
 volumes:
-  mysql_data:
-  redis_data:
+   mysql_data:
 
 networks:
   chacc-rtl-network:

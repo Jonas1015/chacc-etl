@@ -186,10 +186,32 @@ Licensed under the Apache License, Version 2.0 (the "License");
 
 .execution-row.success {
     border-left: 4px solid var(--success-bg);
+    box-shadow: inset 4px 0 0 var(--success-bg);
 }
 
 .execution-row.failed {
     border-left: 4px solid var(--error-bg);
+    box-shadow: inset 4px 0 0 var(--error-bg);
+}
+
+.execution-row.done {
+    border-left: 4px solid #28a745;
+    box-shadow: inset 4px 0 0 #28a745;
+}
+
+.execution-row.interrupted {
+    border-left: 4px solid #fd7e14;
+    box-shadow: inset 4px 0 0 #fd7e14;
+}
+
+.execution-row.pending {
+    border-left: 4px solid #17a2b8;
+    box-shadow: inset 4px 0 0 #17a2b8;
+}
+
+.execution-row.info {
+    border-left: 4px solid #6c757d;
+    box-shadow: inset 4px 0 0 #6c757d;
 }
 
 /* Status Badge */
@@ -210,6 +232,27 @@ Licensed under the Apache License, Version 2.0 (the "License");
 .status-badge.failed {
     background-color: var(--error-bg);
     color: var(--error-text);
+}
+
+.status-badge.done {
+    background-color: #6c757d;
+    color: white;
+}
+
+.status-badge.interrupted {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.status-badge.pending {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.id-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
 }
 
 /* Result Cell */

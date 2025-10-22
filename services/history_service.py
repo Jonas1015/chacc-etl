@@ -19,7 +19,7 @@ except ImportError:
     get_target_db_connection = None
 
 
-def log_pipeline_execution(action, start_time, end_time, success, result=""):
+def log_pipeline_execution(action, start_time, end_time, success, result="", status="completed"):
     """Log a pipeline execution to database."""
     try:
         try:
@@ -32,50 +32,58 @@ def log_pipeline_execution(action, start_time, end_time, success, result=""):
             cursor = conn.cursor()
 
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS pipeline_history (
+                CREATE TABLE IF NOT EXISTS chacc_pipeline_history (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     action VARCHAR(50) NOT NULL,
                     pipeline_type VARCHAR(100) NOT NULL,
                     start_time DATETIME NOT NULL,
-                    end_time DATETIME NOT NULL,
-                    duration_seconds DECIMAL(10,2) NOT NULL,
-                    success BOOLEAN NOT NULL DEFAULT FALSE,
+                    end_time DATETIME,
+                    duration_seconds DECIMAL(10,2),
+                    success BOOLEAN,
+                    status VARCHAR(20) NOT NULL DEFAULT 'completed',
                     result TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     INDEX idx_action (action),
                     INDEX idx_success (success),
+                    INDEX idx_status (status),
                     INDEX idx_start_time (start_time),
                     INDEX idx_pipeline_type (pipeline_type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """)
 
+            end_time_val = datetime.fromtimestamp(end_time) if end_time else None
+            duration_val = round(end_time - start_time, 2) if end_time else None
+            success_val = success if status == 'completed' else None
+
             cursor.execute("""
-                INSERT INTO pipeline_history
-                (action, pipeline_type, start_time, end_time, duration_seconds, success, result)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO chacc_pipeline_history
+                (action, pipeline_type, start_time, end_time, duration_seconds, success, status, result)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 action,
                 action.replace('_', ' ').title(),
                 datetime.fromtimestamp(start_time),
-                datetime.fromtimestamp(end_time),
-                round(end_time - start_time, 2),
-                success,
+                end_time_val,
+                duration_val,
+                success_val,
+                status,
                 result[:1000] if result else None
             ))
 
             conn.commit()
             execution_id = cursor.lastrowid
 
-            print(f"Logged pipeline execution: {action} - {'Success' if success else 'Failed'}")
+            print(f"Logged pipeline execution: {action} - {status}")
 
             return {
                 'id': execution_id,
                 'action': action,
                 'pipeline_type': action.replace('_', ' ').title(),
                 'start_time': datetime.fromtimestamp(start_time),
-                'end_time': datetime.fromtimestamp(end_time),
-                'duration_seconds': round(end_time - start_time, 2),
-                'success': success,
+                'end_time': end_time_val,
+                'duration_seconds': duration_val,
+                'success': success_val,
+                'status': status,
                 'result': result[:1000] if result else None
             }
 
@@ -84,7 +92,82 @@ def log_pipeline_execution(action, start_time, end_time, success, result=""):
         return None
 
 
-def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, date_to=None, success=None):
+def update_pipeline_status(execution_id, status, end_time=None, success=None, result=""):
+    """Update an existing pipeline execution status."""
+    try:
+        try:
+            from utils.db_utils import get_target_db_connection
+        except ImportError:
+            print("Database utils not available, skipping status update")
+            return False
+
+        with get_target_db_connection() as conn:
+            cursor = conn.cursor()
+
+            if status in ['completed', 'failed', 'interrupted']:
+                # For final statuses, set end_time and duration
+                end_time_val = datetime.fromtimestamp(end_time) if end_time else datetime.now()
+                duration_val = None
+                if end_time:
+                    # Get start time to calculate duration
+                    cursor.execute("SELECT start_time FROM chacc_pipeline_history WHERE id = %s", (execution_id,))
+                    start_result = cursor.fetchone()
+                    if start_result:
+                        start_time = start_result[0]
+                        if hasattr(start_time, 'timestamp'):
+                            duration_val = round(end_time - start_time.timestamp(), 2)
+
+                cursor.execute("""
+                    UPDATE chacc_pipeline_history
+                    SET status = %s, end_time = %s, duration_seconds = %s, success = %s, result = %s
+                    WHERE id = %s
+                """, (status, end_time_val, duration_val, success, result[:1000] if result else None, execution_id))
+            else:
+                # For pending/interrupted status, just update status
+                cursor.execute("""
+                    UPDATE chacc_pipeline_history
+                    SET status = %s, result = %s
+                    WHERE id = %s
+                """, (status, result[:1000] if result else None, execution_id))
+
+            conn.commit()
+            print(f"Updated pipeline execution {execution_id} to status: {status}")
+            return True
+
+    except Exception as e:
+        print(f"Error updating pipeline status: {e}")
+        return False
+
+
+def get_last_pending_execution():
+    """Get the last pending pipeline execution."""
+    try:
+        try:
+            from utils.db_utils import get_target_db_connection
+        except ImportError:
+            print("Database utils not available, returning None")
+            return None
+
+        with get_target_db_connection() as conn:
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+            cursor.execute("""
+                SELECT id, action, pipeline_type, start_time, status, result
+                FROM chacc_pipeline_history
+                WHERE status IN ('pending', 'running')
+                ORDER BY created_at DESC
+                LIMIT 1
+            """)
+
+            result = cursor.fetchone()
+            return result
+
+    except Exception as e:
+        print(f"Error retrieving last pending execution: {e}")
+        return None
+
+
+def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, date_to=None, success=None, status=None):
     """Get recent pipeline execution history from database with filtering and pagination."""
     try:
         try:
@@ -98,8 +181,8 @@ def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, d
 
             query = """
                 SELECT id, action, pipeline_type, start_time, end_time,
-                       duration_seconds, success, result, created_at
-                FROM pipeline_history
+                       duration_seconds, success, status, result, created_at
+                FROM chacc_pipeline_history
                 WHERE 1=1
             """
             params = []
@@ -120,6 +203,10 @@ def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, d
                 query += " AND success = %s"
                 params.append(success)
 
+            if status:
+                query += " AND status = %s"
+                params.append(status)
+
             query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
             params.extend([limit, offset])
 
@@ -138,7 +225,7 @@ def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, d
         return []
 
 
-def get_history_count(pipeline_type=None, date_from=None, date_to=None, success=None):
+def get_history_count(pipeline_type=None, date_from=None, date_to=None, success=None, status=None):
     """Get total count of history records with filters."""
     try:
         try:
@@ -150,7 +237,7 @@ def get_history_count(pipeline_type=None, date_from=None, date_to=None, success=
         with get_target_db_connection() as conn:
             cursor = conn.cursor()
 
-            query = "SELECT COUNT(*) FROM pipeline_history WHERE 1=1"
+            query = "SELECT COUNT(*) FROM chacc_pipeline_history WHERE 1=1"
             params = []
 
             if pipeline_type:
@@ -168,6 +255,10 @@ def get_history_count(pipeline_type=None, date_from=None, date_to=None, success=
             if success is not None:
                 query += " AND success = %s"
                 params.append(success)
+
+            if status:
+                query += " AND status = %s"
+                params.append(status)
 
             cursor.execute(query, params)
             result = cursor.fetchone()
@@ -192,20 +283,18 @@ def get_pipeline_types():
 
             cursor.execute("""
                 SELECT DISTINCT action, pipeline_type
-                FROM pipeline_history
+                FROM chacc_pipeline_history
                 ORDER BY action
             """)
 
             results = cursor.fetchall()
 
-            # Always include predefined types, plus any from history
             predefined_types = get_predefined_pipeline_types()
             action_map = {item['action']: item for item in predefined_types}
 
-            # Add any types from history that aren't in predefined
             for result in results:
-                if result['action'] not in action_map:
-                    action_map[result['action']] = result
+                if result[0] not in action_map:
+                    action_map[result[0]] = {'action': result[0], 'pipeline_type': result[1]}
 
             return list(action_map.values())
 
@@ -241,7 +330,7 @@ def clear_history():
 
         with get_target_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("TRUNCATE TABLE pipeline_history")
+            cursor.execute("TRUNCATE TABLE chacc_pipeline_history")
             conn.commit()
             print("Pipeline history cleared successfully")
             return True
@@ -273,7 +362,7 @@ def get_history_stats():
                     SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_runs,
                     AVG(duration_seconds) as avg_duration,
                     MAX(created_at) as last_run
-                FROM pipeline_history
+                FROM chacc_pipeline_history
             """)
 
             result = cursor.fetchone()

@@ -192,6 +192,10 @@ body {
     color: var(--info-text);
 }
 
+[data-theme="dark"] .info pre {
+    color: #272626;
+}
+
 .status h3 {
     margin-top: 0;
     margin-bottom: 12px;
@@ -243,6 +247,29 @@ body {
     color: var(--text-color);
     font-size: 1.4em;
     font-weight: 600;
+}
+
+.current-task-display {
+    margin-bottom: 15px;
+    padding: 12px;
+    background-color: var(--info-bg);
+    border: 1px solid var(--button-bg);
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--info-text);
+}
+
+.current-task-display strong {
+    color: var(--button-bg);
+}
+
+[data-theme="dark"] .current-task-display strong {
+    color: var(--button-bg);
+}
+
+[data-theme="dark"] .current-task-display strong {
+    color: var(--white);
 }
 
 .progress-container {

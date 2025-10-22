@@ -14,7 +14,7 @@ A modern, configuration-driven ETL system built with Luigi for migrating and tra
 ## 🛠 Project Structure
 
 ```
-luigi-etl/
+chacc-etl/
 ├── config/
 │   ├── database_config.py      # Database connection settings
 │   └── tasks/                  # JSON task definitions
@@ -48,12 +48,12 @@ luigi-etl/
 
 ### Docker Deployment (Recommended)
 
-The easiest way to run the Luigi ETL Pipeline is using Docker with production-ready WSGI server:
+The easiest way to run the ChaCC ETL Pipeline is using Docker with production-ready WSGI server:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/luigi-etl-pipeline.git
-cd luigi-etl-pipeline
+git clone https://github.com/yourusername/chacc-etl.git
+cd chacc-etl
 
 # Copy environment file and configure
 cp .env.example .env
@@ -76,7 +76,7 @@ docker-compose logs -f chacc-etl-ui
 - **Web UI**: http://localhost:5000
 - **Luigi Visualizer**: http://localhost:8082
 - **MySQL**: localhost:3306
-- **Redis**: localhost:6379
+- **Redis**: localhost:6379 (optional, for multi-instance deployments)
 
 ### Manual Installation
 
@@ -166,20 +166,16 @@ python scripts/run_pipeline.py --full-refresh --central-scheduler
 python scripts/run_pipeline.py --full-refresh --workers 4
 ```
 
-### Deployment Scripts
+### Building Docker Images
 
-For production deployment:
+For local testing and development:
 
 ```bash
-# Build and deploy locally
-./scripts/deploy/deploy.sh deploy
-
-# Build image only
+# Build Docker image locally
 ./scripts/deploy/deploy.sh build
-
-# Push to Docker Hub
-./scripts/deploy/deploy.sh push
 ```
+
+**Note**: Automated building and pushing to Docker Hub is handled by GitHub Actions workflows on releases. Users can pull and deploy the published images directly.
 
 ## 📋 Task Configuration
 
@@ -212,8 +208,8 @@ Example task definition:
 - `locations` - Facility and location data
 
 ### Metadata Tables
-- `etl_metadata` - Task execution tracking
-- `etl_watermarks` - Incremental processing markers
+- `chacc_etl_metadata` - Task execution tracking
+- `chacc_etl_watermarks` - Incremental processing markers
 
 ### Flattened Tables
 - `flattened_patient_encounters` - Denormalized patient-encounter data
@@ -226,12 +222,25 @@ Example task definition:
 
 ## 🐳 Docker Deployment
 
+### Optional Redis for Multi-Instance Deployments
+
+For single-server production deployments, Redis is not required. However, if you plan to run multiple instances of the web UI behind a load balancer for high availability:
+
+1. **Uncomment the Redis service** in `scripts/deploy/docker-compose.prod.yml`
+2. **Set the REDIS_URL environment variable** in your `.env` file:
+   ```bash
+   REDIS_URL=redis://redis:6379/0
+   ```
+3. **Uncomment redis in depends_on** and **redis_data volume** in the production compose file
+
+This enables WebSocket message coordination across multiple app instances, ensuring all connected users see real-time pipeline progress updates.
+
 ### Production Setup
 
 1. **Clone and configure**:
    ```bash
-   git clone https://github.com/yourusername/luigi-etl-pipeline.git
-   cd luigi-etl-pipeline
+   git clone https://github.com/yourusername/chacc-etl-pipeline.git
+   cd chacc-etl-pipeline
    cp .env.example .env
    # Edit .env with production database credentials
    ```
@@ -247,11 +256,12 @@ Example task definition:
 
 3. **Environment variables** for production:
    ```bash
-   DOCKER_IMAGE=your-registry/luigi-etl-pipeline
+   DOCKER_IMAGE=your-registry/chacc-etl-pipeline
    DOCKER_TAG=v1.0.0
    WEB_PORT=80
    MYSQL_PORT=3306
-   REDIS_PORT=6379
+   REDIS_PORT=6379  # Optional: only needed for multi-instance deployments
+   REDIS_URL=redis://redis:6379/0  # Optional: set to enable Redis for WebSocket coordination
    ```
 
 ### CI/CD Pipeline
@@ -343,10 +353,10 @@ docker-compose down
 
 ```bash
 # Build custom image for development
-docker build -t luigi-etl-dev .
+docker build -t chacc-etl-dev .
 
 # Run with volume mounts for live code changes
-docker run -v $(pwd):/app -p 5000:5000 luigi-etl-dev
+docker run -v $(pwd):/app -p 5000:5000 chacc-etl-dev
 
 # Or use docker-compose.override.yml for development
 echo 'version: "3.8"
@@ -367,8 +377,8 @@ This project is licensed under the **Apache License 2.0** — see the [LICENSE](
 ## 🚀 Quick Start with Docker
 
 ```bash
-git clone https://github.com/yourusername/luigi-etl-pipeline.git
-cd luigi-etl-pipeline
+git clone https://github.com/yourusername/chacc-etl-pipeline.git
+cd chacc-etl-pipeline
 cp .env.example .env
 # Edit .env file with your database credentials
 docker-compose up -d
