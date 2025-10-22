@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS chacc_pipeline_history (
     INDEX idx_pipeline_type (pipeline_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Tracks all pipeline execution history';
 
-CREATE TABLE IF NOT EXISTS pipeline_task_history (
+CREATE TABLE IF NOT EXISTS chacc_pipeline_task_history (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pipeline_history_id INT NOT NULL COMMENT 'Reference to chacc_pipeline_history.id',
     task_name VARCHAR(255) NOT NULL COMMENT 'Name of the task that executed',
