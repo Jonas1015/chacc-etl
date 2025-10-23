@@ -45,7 +45,11 @@ def index():
                 pipeline_start_time = current_progress.get('pipeline_start_time', time.time())
                 pipeline_type = current_progress.get('pipeline_type', 'unknown')
                 log_pipeline_execution(pipeline_type, pipeline_start_time, None, None, "Pipeline started", "pending")
-        return render_template("index.html", status="A pipeline is already running. Please wait for it to complete.")
+
+    from config.luigi_config import SCHEDULER_HOST, SCHEDULER_PORT
+    luigi_visualizer_url = f"{SCHEDULER_HOST}:{SCHEDULER_PORT}"
+
+    return render_template("index.html", status="A pipeline is already running. Please wait for it to complete.", luigi_visualizer_url=luigi_visualizer_url)
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -91,12 +95,16 @@ def index():
 
     if last_pendings is None:
         last_pendings = get_last_pending_execution()
-    
+
     if len(last_pendings) > 0:
             for last_pending in last_pendings:
                 update_pipeline_status(execution_id = last_pending.get("id"), status = "interrupted", end_time = None, success = False, result = "Pipeline started")
 
-    return render_template("index.html", status=None)
+    # Get Luigi visualizer URL from config
+    from config.luigi_config import SCHEDULER_HOST, SCHEDULER_PORT, SCHEDULER_PROTOCOL
+    luigi_visualizer_url = f"{SCHEDULER_PROTOCOL}://{SCHEDULER_HOST}:{SCHEDULER_PORT}"
+
+    return render_template("index.html", status=None, luigi_visualizer_url=luigi_visualizer_url)
 
 @app.route('/history')
 def history():
@@ -173,6 +181,32 @@ def clear_history_route():
         return {'success': True, 'message': 'History cleared successfully'}
     except Exception as e:
         return {'success': False, 'message': str(e)}, 500
+
+@app.route('/interrupt-pipeline', methods=['POST'])
+def interrupt_pipeline():
+    """Interrupt the currently running pipeline."""
+    try:
+        from utils.pipeline_runner import get_task_manager
+        task_manager = get_task_manager()
+        success = task_manager.interrupt_pipeline()
+
+        if success:
+            return {'success': True, 'message': 'Pipeline interruption requested'}
+        else:
+            return {'success': False, 'message': 'Failed to interrupt pipeline'}, 500
+    except Exception as e:
+        return {'success': False, 'message': str(e)}, 500
+
+@app.route('/pipeline-status')
+def pipeline_status():
+    """Get current pipeline execution status."""
+    try:
+        from utils.pipeline_runner import get_task_manager
+        task_manager = get_task_manager()
+        status = task_manager.get_pipeline_status()
+        return {'status': status}
+    except Exception as e:
+        return {'error': str(e)}, 500
 
 register_socket_handlers(socketio)
 

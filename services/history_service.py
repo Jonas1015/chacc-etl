@@ -31,25 +31,6 @@ def log_pipeline_execution(action, start_time, end_time, success, result="", sta
         with get_target_db_connection() as conn:
             cursor = conn.cursor()
 
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS chacc_pipeline_history (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    action VARCHAR(50) NOT NULL,
-                    pipeline_type VARCHAR(100) NOT NULL,
-                    start_time DATETIME NOT NULL,
-                    end_time DATETIME,
-                    duration_seconds DECIMAL(10,2),
-                    success BOOLEAN,
-                    status VARCHAR(20) NOT NULL DEFAULT 'completed',
-                    result TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_action (action),
-                    INDEX idx_success (success),
-                    INDEX idx_status (status),
-                    INDEX idx_start_time (start_time),
-                    INDEX idx_pipeline_type (pipeline_type)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """)
 
             end_time_val = datetime.fromtimestamp(end_time) if end_time else None
             duration_val = round(end_time - start_time, 2) if end_time else None
@@ -123,7 +104,6 @@ def update_pipeline_status(execution_id, status, end_time=None, success=None, re
                     WHERE id = %s
                 """, (status, end_time_val, duration_val, success, result[:1000] if result else None, execution_id))
             else:
-                # For pending/interrupted status, just update status
                 cursor.execute("""
                     UPDATE chacc_pipeline_history
                     SET status = %s, result = %s
@@ -263,62 +243,6 @@ def get_pipeline_task_history(pipeline_history_id):
         return []
 
 
-def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, date_to=None, success=None, status=None):
-    """Get recent pipeline execution history from database with filtering and pagination."""
-    try:
-        try:
-            from utils.db_utils import get_target_db_connection
-        except ImportError:
-            print("Database utils not available, returning empty history")
-            return []
-
-        with get_target_db_connection() as conn:
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
-
-            query = """
-                SELECT id, action, pipeline_type, start_time, end_time,
-                       duration_seconds, success, status, result, created_at
-                FROM chacc_pipeline_history
-                WHERE 1=1
-            """
-            params = []
-
-            if pipeline_type:
-                query += " AND action = %s"
-                params.append(pipeline_type)
-
-            if date_from:
-                query += " AND DATE(start_time) >= %s"
-                params.append(date_from)
-
-            if date_to:
-                query += " AND DATE(start_time) <= %s"
-                params.append(date_to)
-
-            if success is not None:
-                query += " AND success = %s"
-                params.append(success)
-
-            if status:
-                query += " AND status = %s"
-                params.append(status)
-
-            query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
-            params.extend([limit, offset])
-
-            cursor.execute(query, params)
-            results = cursor.fetchall()
-
-            for result in results:
-                result['timestamp'] = result['created_at'].isoformat() if result['created_at'] else None
-                result['start_time'] = result['start_time'].isoformat() if result['start_time'] else None
-                result['end_time'] = result['end_time'].isoformat() if result['end_time'] else None
-
-            return results
-
-    except Exception as e:
-        print(f"Error retrieving pipeline history: {e}")
-        return []
 
 
 def get_history_count(pipeline_type=None, date_from=None, date_to=None, success=None, status=None):

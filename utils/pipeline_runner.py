@@ -10,7 +10,20 @@ import os
 import threading
 import time
 from utils.progress_parser import parse_luigi_progress
+from utils.task_manager import LuigiTaskManager
 
+
+_task_manager = None
+
+def get_task_manager():
+    """Get or create the global task manager instance."""
+    global _task_manager
+    if _task_manager is None:
+        _task_manager = LuigiTaskManager(
+            max_concurrent_tasks=2,
+            task_timeout=1800
+        )
+    return _task_manager
 
 def run_pipeline_async(action, socketio, task_status):
     """Run pipeline in background thread with progress updates"""

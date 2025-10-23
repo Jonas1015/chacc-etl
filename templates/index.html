@@ -38,7 +38,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
             <a href="/upload" class="button secondary tool-btn" style="text-decoration: none; text-align: center;">
                 Upload Files
             </a>
-            <a href="http://localhost:8082" target="_blank" class="button secondary tool-btn"
+            <a href="{{ luigi_visualizer_url }}" target="_blank" class="button secondary tool-btn"
                 style="text-decoration: none; text-align: center;">
                 Luigi Visualizer
             </a>
@@ -51,8 +51,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
                 <button class="button" name="action" value="scheduled" type="button" id="scheduled_btn" onclick="showScheduledModal()">Scheduled Run</button>
                 <button class="button danger" name="action" value="force_refresh" type="submit" id="force_refresh_btn" onclick="return confirmForceRefresh()">Force Full
                     Refresh</button>
-                <a href="http://localhost:8082" target="_blank" class="button secondary"
-                    style="text-decoration: none; text-align: center; line-height: 1.2;">Luigi Visualizer</a>
+                <button class="button warning" type="button" onclick="interruptPipeline()" id="interrupt-btn" style="display: none;">🛑 Interrupt Pipeline</button>
             </div>
         </form>
 
@@ -125,6 +124,28 @@ function confirmForceRefresh() {
                       'This action cannot be undone. Are you sure you want to proceed?');
     }
     return true;
+}
+
+function interruptPipeline() {
+    if (confirm('🛑 Are you sure you want to interrupt the running pipeline?\n\nThis will stop all currently executing tasks.')) {
+        fetch('/interrupt-pipeline', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Pipeline interruption requested. Tasks will be stopped gracefully.');
+            } else {
+                alert('Failed to interrupt pipeline: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error interrupting pipeline: ' + error.message);
+        });
+    }
 }
 </script>
 

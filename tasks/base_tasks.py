@@ -157,7 +157,8 @@ class TargetDatabaseTask(BaseETLTask):
                 self.log_task_execution(self.__class__.__name__, 'FAILED', task_start_time, task_end_time, duration, str(e))
 
                 update_task_progress(self.__class__.__name__, 'failed')
-                raise
+                # Don't re-raise the exception - let the task fail but allow other tasks to continue
+                self.logger.error(f"Task {self.__class__.__name__} failed but pipeline continues: {str(e)}")
 
     def execute_task(self):
         """Override this method in subclasses to implement actual task logic."""

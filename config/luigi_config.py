@@ -6,6 +6,7 @@ config = Config(RepositoryEnv(env_path))
 
 SCHEDULER_HOST = config('LUIGI_SCHEDULER_HOST', default='localhost')
 SCHEDULER_PORT = config('LUIGI_SCHEDULER_PORT', default=8082, cast=int)
+SCHEDULER_PROTOCOL = config('LUIGI_SCHEDULER_PROTOCOL', default='http')
 
 WORKER_COUNT = config('LUIGI_WORKER_COUNT', default=1, cast=int)
 WORKER_TIMEOUT = config('LUIGI_WORKER_TIMEOUT', default=900, cast=int)

@@ -15,6 +15,10 @@ function initializeWebSocket() {
     socket.on('task_update', function(data) {
         console.log('Received task update:', data);
         updateProgress(data);
+        const interruptBtn = document.getElementById('interrupt-btn');
+        if (interruptBtn) {
+            interruptBtn.style.display = data.running ? 'inline-block' : 'none';
+        }
     });
 
     socket.on('disconnect', function() {

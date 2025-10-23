@@ -24,7 +24,7 @@ def ensure_luigi_daemon_running(socketio=None):
         if socketio:
             socketio.emit('task_update', {'message': 'Checking Luigi daemon status...'})
     except:
-        pass  # SocketIO not available, continue silently
+        pass
 
     check_result = subprocess.run(['pgrep', '-f', 'luigid'], capture_output=True, text=True)
     luigid_running = check_result.returncode == 0
@@ -34,14 +34,13 @@ def ensure_luigi_daemon_running(socketio=None):
             if socketio:
                 socketio.emit('task_update', {'message': 'Starting Luigi daemon...'})
         except:
-            pass  # SocketIO not available, continue silently
+            pass
 
         logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
         os.makedirs(logs_dir, exist_ok=True)
 
         subprocess.Popen(['luigid', '--background', '--logdir', logs_dir])
-        time.sleep(2)  # Give daemon time to start
-
+        time.sleep(2)
     return True
 
 
