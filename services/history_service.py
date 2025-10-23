@@ -156,10 +156,9 @@ def get_last_pending_execution():
                 FROM chacc_pipeline_history
                 WHERE status IN ('pending', 'running')
                 ORDER BY created_at DESC
-                LIMIT 1
             """)
 
-            result = cursor.fetchone()
+            result = cursor.fetchall()
             return result
 
     except Exception as e:
@@ -187,7 +186,7 @@ def get_recent_history(limit=50, offset=0, pipeline_type=None, date_from=None, d
                        SUM(CASE WHEN pth.status = 'failed' THEN 1 ELSE 0 END) as failed_tasks,
                        SUM(CASE WHEN pth.status = 'interrupted' THEN 1 ELSE 0 END) as interrupted_tasks
                 FROM chacc_pipeline_history ph
-                LEFT JOIN pipeline_task_history pth ON ph.id = pth.pipeline_history_id
+                LEFT JOIN chacc_pipeline_task_history pth ON ph.id = pth.pipeline_history_id
                 WHERE 1=1
             """
             params = []
@@ -245,7 +244,7 @@ def get_pipeline_task_history(pipeline_history_id):
             cursor.execute("""
                 SELECT id, task_name, task_type, status, start_time, end_time,
                        duration_seconds, error_message, records_processed, created_at
-                FROM pipeline_task_history
+                FROM chacc_pipeline_task_history
                 WHERE pipeline_history_id = %s
                 ORDER BY start_time ASC
             """, (pipeline_history_id,))

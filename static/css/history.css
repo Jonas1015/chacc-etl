@@ -7,6 +7,174 @@ Licensed under the Apache License, Version 2.0 (the "License");
         http://www.apache.org/licenses/LICENSE-2.0
 */
 
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 1200px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.modal-close {
+    color: var(--text-muted);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: var(--text-color);
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Tasks table styles */
+.tasks-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.tasks-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.tasks-table th,
+.tasks-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tasks-table th {
+    background-color: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-color);
+    position: sticky;
+    top: 0;
+}
+
+.tasks-table tr:hover {
+    background-color: var(--bg-hover);
+}
+
+.tasks-table .status-badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+/* Status colors for tasks */
+.tasks-table .success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.tasks-table .failed {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.tasks-table .pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.tasks-table .interrupted {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.tasks-table .info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .tasks-table .success {
+    background-color: #1e4620;
+    color: #d4edda;
+}
+
+[data-theme="dark"] .tasks-table .failed {
+    background-color: #4a1c1f;
+    color: #f8d7da;
+}
+
+[data-theme="dark"] .tasks-table .pending {
+    background-color: #4a4a1c;
+    color: #fff3cd;
+}
+
+[data-theme="dark"] .tasks-table .interrupted {
+    background-color: #2d2d2d;
+    color: #e2e3e5;
+}
+
+[data-theme="dark"] .tasks-table .info {
+    background-color: #1e3a3f;
+    color: #d1ecf1;
+}
+
+/* Loading and error states */
+.loading, .error-state, .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.error-state {
+    color: var(--error-color);
+}
+
+/* Make execution rows clickable */
+.execution-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.execution-row:hover {
+    background-color: var(--bg-hover);
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

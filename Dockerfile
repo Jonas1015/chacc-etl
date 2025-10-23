@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 FROM python:3.9-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -6,7 +7,7 @@ ENV PYTHONPATH=/app
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     default-libmysqlclient-dev \
     pkg-config \
@@ -14,45 +15,45 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN useradd --create-home --shell /bin/bash app \
+    && mkdir -p /var/log/supervisor logs data \
+    && chown -R app:app /app
 
-RUN pip install --no-cache-dir gunicorn gevent-websocket
+COPY requirements.txt .
+
+RUN --mount=type=cache,target=/app/.dependency_cache \
+    pip install chacc-dependency-manager[resolver] && \
+    cdm install -r requirements.txt && \
+    cdm install gunicorn gevent-websocket
 
 COPY . .
 
-RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d
-
 RUN echo "[supervisord]\n\
-nodaemon=true\n\
-user=root\n\
-\n\
-[program:chacc-etl-ui]\n\
-command=gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker wsgi:application\n\
-directory=/app\n\
-user=app\n\
-autostart=true\n\
-autorestart=true\n\
-redirect_stderr=true\n\
-stdout_logfile=/var/log/supervisor/chacc-etl-ui.log\n\
-stdout_logfile_maxbytes=50MB\n\
-stdout_logfile_backups=3\n\
-\n\
-[program:luigi-daemon]\n\
-command=luigid --background --logdir /app/logs\n\
-directory=/app\n\
-user=app\n\
-autostart=true\n\
-autorestart=true\n\
-redirect_stderr=true\n\
-stdout_logfile=/var/log/supervisor/luigi-daemon.log\n\
-stdout_logfile_maxbytes=50MB\n\
-stdout_logfile_backups=3" > /etc/supervisor/conf.d/app.conf
+    nodaemon=true\n\
+    user=root\n\
+    \n\
+    [program:chacc-etl-ui]\n\
+    command=gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker wsgi:application\n\
+    directory=/app\n\
+    user=app\n\
+    autostart=true\n\
+    autorestart=true\n\
+    redirect_stderr=true\n\
+    stdout_logfile=/var/log/supervisor/chacc-etl-ui.log\n\
+    stdout_logfile_maxbytes=50MB\n\
+    stdout_logfile_backups=3\n\
+    \n\
+    [program:luigi-daemon]\n\
+    command=luigid --background --logdir /app/logs\n\
+    directory=/app\n\
+    user=app\n\
+    autostart=true\n\
+    autorestart=true\n\
+    redirect_stderr=true\n\
+    stdout_logfile=/var/log/supervisor/luigi-daemon.log\n\
+    stdout_logfile_maxbytes=50MB\n\
+    stdout_logfile_backups=3" > /etc/supervisor/conf.d/app.conf
 
-RUN mkdir -p logs data
-
-RUN useradd --create-home --shell /bin/bash app \
-    && chown -R app:app /app
 USER app
 
 EXPOSE 5000

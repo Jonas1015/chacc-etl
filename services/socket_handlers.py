@@ -28,7 +28,6 @@ def handle_connect():
         from services.progress_service import get_current_progress
         current_progress = get_current_progress()
 
-        # Always emit current progress state, whether running or not
         emit('task_update', current_progress)
 
 
@@ -38,7 +37,6 @@ def handle_get_status():
         from services.progress_service import get_current_progress
         current_progress = get_current_progress()
 
-        # Always emit current progress state
         emit('task_update', current_progress)
 
 

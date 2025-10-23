@@ -168,36 +168,37 @@ def get_current_progress() -> Dict:
 
         try:
             from services.history_service import get_last_pending_execution, update_pipeline_status
-            last_pending = get_last_pending_execution()
-            if last_pending:
-                if last_pending.get('action') == pipeline_type or pipeline_type == 'unknown':
-                    if success:
-                        final_status = 'completed'
-                    elif pending_tasks > 0:
-                        final_status = 'pending'
-                    elif failed_tasks > 0:
-                        # Check if failure was due to interruption
-                        try:
-                            from utils.db_utils import get_target_db_connection
-                            with get_target_db_connection() as conn:
-                                cursor = conn.cursor()
-                                cursor.execute("""
-                                    SELECT result FROM pipeline_history
-                                    WHERE id = %s AND status = 'interrupted'
-                                """, (last_pending['id'],))
-                                if cursor.fetchone():
-                                    final_status = 'interrupted'
-                                else:
-                                    final_status = 'failed'
-                        except:
-                            final_status = 'failed'
-                    else:
-                        final_status = 'done'
+            last_pendings = get_last_pending_execution()
+            if len(last_pendings) > 0:
+                for last_pending in last_pendings:
+                    if last_pending.get('action') == pipeline_type or pipeline_type == 'unknown':
+                        if success:
+                            final_status = 'completed'
+                        elif pending_tasks > 0:
+                            final_status = 'pending'
+                        elif failed_tasks > 0:
+                            # Check if failure was due to interruption
+                            try:
+                                from utils.db_utils import get_target_db_connection
+                                with get_target_db_connection() as conn:
+                                    cursor = conn.cursor()
+                                    cursor.execute("""
+                                        SELECT result FROM chacc_pipeline_history
+                                        WHERE id = %s AND status = 'interrupted'
+                                    """, (last_pending['id'],))
+                                    if cursor.fetchone():
+                                        final_status = 'interrupted'
+                                    else:
+                                        final_status = 'failed'
+                            except:
+                                final_status = 'failed'
+                        else:
+                            final_status = 'done'
 
-                    result_msg = f"Tasks: {completed_tasks} completed, {failed_tasks} failed, {pending_tasks} pending, {disabled_tasks} disabled."
-                    update_pipeline_status(last_pending['id'], final_status, end_time, success, result_msg)
-                else:
-                    print(f"Pipeline type mismatch: expected {last_pending.get('action')}, got {pipeline_type}. Skipping update.")
+                        result_msg = f"Tasks: {completed_tasks} completed, {failed_tasks} failed, {pending_tasks} pending, {disabled_tasks} disabled."
+                        update_pipeline_status(last_pending['id'], final_status, end_time, success, result_msg)
+                    else:
+                        print(f"Pipeline type mismatch: expected {last_pending.get('action')}, got {pipeline_type}. Skipping update.")
         except Exception as e:
             print(f"Failed to update pipeline execution: {e}")
 

@@ -23,6 +23,12 @@
       "dependencies": ["InitCreateDatabaseTask"],
       "sql": "sql/tables/003_pipeline_history.sql",
       "description": "Create pipeline execution history table"
+    },
+    "TablesPipelineTaskHistoryTask": {
+      "type": "schema",
+      "dependencies": ["TablesPipelineHistoryTask"],
+      "sql": "sql/tables/004_pipeline_task_history.sql",
+      "description": "Create pipeline task execution history table"
     }
   }
 }

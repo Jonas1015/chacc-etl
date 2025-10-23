@@ -38,9 +38,10 @@ task_status = initialize_task_status()
 @app.route('/', methods=['GET', 'POST'])
 def index():
     current_progress = get_current_progress()
+    last_pendings = None
     if current_progress.get('running', False):
-        last_pending = get_last_pending_execution()
-        if not last_pending:
+        last_pendings = get_last_pending_execution()
+        if len(last_pendings) == 0:
                 pipeline_start_time = current_progress.get('pipeline_start_time', time.time())
                 pipeline_type = current_progress.get('pipeline_type', 'unknown')
                 log_pipeline_execution(pipeline_type, pipeline_start_time, None, None, "Pipeline started", "pending")
@@ -49,13 +50,12 @@ def index():
     if request.method == 'POST':
         action = request.form.get('action')
 
-        # Allow force_refresh to interrupt running pipelines
         if current_progress.get('running', False) and action != 'force_refresh':
-            last_pending = get_last_pending_execution()
-            if last_pending:
-                update_pipeline_status(last_pending['id'], 'interrupted', result="Interrupted by new pipeline execution")
+            last_pendings = get_last_pending_execution() if last_pendings == None else last_pendings
+            if len(last_pendings) == 0:
+                for last_pending in last_pendings:
+                    update_pipeline_status(last_pending['id'], 'interrupted', result="Interrupted by new pipeline execution")
         elif action == 'force_refresh' and current_progress.get('running', False):
-            # Set interruption flag for running pipelines
             try:
                 from utils.db_utils import get_target_db_connection
                 with get_target_db_connection() as conn:
@@ -68,7 +68,7 @@ def index():
                         "requested_at": time.time()
                     }
                     cursor.execute("""
-                        UPDATE pipeline_history
+                        UPDATE chacc_pipeline_history
                         SET status = 'interrupting',
                             result = %s
                         WHERE status IN ('pending', 'running')
@@ -88,6 +88,13 @@ def index():
         thread.start()
 
         return render_template("index.html", status="Pipeline started in background. Check progress below.")
+
+    if last_pendings is None:
+        last_pendings = get_last_pending_execution()
+    
+    if len(last_pendings) > 0:
+            for last_pending in last_pendings:
+                update_pipeline_status(execution_id = last_pending.get("id"), status = "interrupted", end_time = None, success = False, result = "Pipeline started")
 
     return render_template("index.html", status=None)
 
@@ -150,6 +157,13 @@ def history():
                              'date_to': date_to,
                              'status': status_filter
                          })
+
+@app.route('/pipeline-tasks/<int:pipeline_id>')
+def pipeline_tasks(pipeline_id):
+    """Get tasks for a specific pipeline execution."""
+    from services.history_service import get_pipeline_task_history
+    tasks = get_pipeline_task_history(pipeline_id)
+    return {'tasks': tasks}
 
 @app.route('/clear-history', methods=['POST'])
 def clear_history_route():
@@ -253,7 +267,8 @@ def initialize_database():
             'InitCreateDatabaseTask',
             'TablesEtlMetadataTask',
             'TablesEtlWatermarksTask',
-            'TablesPipelineHistoryTask'
+            'TablesPipelineHistoryTask',
+            'TablesPipelineTaskHistoryTask'
         ]
 
         for task_name in required_tasks:

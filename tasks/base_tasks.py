@@ -8,6 +8,7 @@
 
 import luigi
 import logging
+import time
 from config import LOG_LEVEL, LOG_PATH, MAX_RETRIES, RETRY_DELAY
 
 logging.basicConfig(
@@ -19,7 +20,6 @@ logging.basicConfig(
     ]
 )
 
-# Import progress service for task lifecycle events
 from services.progress_service import update_task_progress
 
 class BaseETLTask(luigi.Task):
@@ -74,7 +74,7 @@ class TargetDatabaseTask(BaseETLTask):
             with self.get_db_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT result FROM pipeline_history
+                    SELECT result FROM chacc_pipeline_history
                     WHERE status = 'interrupting'
                     AND JSON_EXTRACT(result, '$.interruption_requested') = true
                     LIMIT 1
@@ -95,32 +95,24 @@ class TargetDatabaseTask(BaseETLTask):
         task_start_time = time.time()
 
         try:
-            # Signal task start
             update_task_progress(self.__class__.__name__, 'running')
 
-            # Log task start to pipeline task history
-            self.log_task_execution(self.__class__.__name__, 'running', task_start_time)
+            self.log_task_execution(self.__class__.__name__, 'RUNNING', task_start_time)
 
-            # Call the actual task implementation
             self.execute_task()
 
-            # Calculate duration
             task_end_time = time.time()
             duration = round(task_end_time - task_start_time, 2)
 
-            # Log task completion
-            self.log_task_execution(self.__class__.__name__, 'completed', task_start_time, task_end_time, duration)
+            self.log_task_execution(self.__class__.__name__, 'DONE', task_start_time, task_end_time, duration)
 
-            # Signal task completion
             update_task_progress(self.__class__.__name__, 'completed')
 
         except InterruptedException as e:
-            # Handle interruption
             task_end_time = time.time()
             duration = round(task_end_time - task_start_time, 2)
-            self.log_task_execution(self.__class__.__name__, 'interrupted', task_start_time, task_end_time, duration, str(e))
+            self.log_task_execution(self.__class__.__name__, 'DISABLED', task_start_time, task_end_time, duration, str(e))
 
-            # Update the interrupting record to interrupted
             try:
                 with self.get_db_connection() as conn:
                     cursor = conn.cursor()
@@ -135,19 +127,16 @@ class TargetDatabaseTask(BaseETLTask):
             except Exception as update_e:
                 self.logger.error(f"Failed to acknowledge interruption: {update_e}")
 
-            # Re-raise the interruption
             raise
 
         except Exception as e:
-            # Check if this is an interruption
             interrupted, reason = self.check_interruption()
             if interrupted:
                 task_end_time = time.time()
                 duration = round(task_end_time - task_start_time, 2)
-                self.log_task_execution(self.__class__.__name__, 'interrupted', task_start_time, task_end_time, duration, reason)
+                self.log_task_execution(self.__class__.__name__, 'DISABLED', task_start_time, task_end_time, duration, reason)
 
                 self.logger.info(f"Task interrupted: {reason}")
-                # Update the interrupting record to interrupted
                 try:
                     with self.get_db_connection() as conn:
                         cursor = conn.cursor()
@@ -161,15 +150,12 @@ class TargetDatabaseTask(BaseETLTask):
                         conn.commit()
                 except Exception as update_e:
                     self.logger.error(f"Failed to acknowledge interruption: {update_e}")
-                # Re-raise as a specific interruption exception
                 raise InterruptedException(f"Pipeline interrupted: {reason}")
             else:
-                # Log task failure
                 task_end_time = time.time()
                 duration = round(task_end_time - task_start_time, 2)
-                self.log_task_execution(self.__class__.__name__, 'failed', task_start_time, task_end_time, duration, str(e))
+                self.log_task_execution(self.__class__.__name__, 'FAILED', task_start_time, task_end_time, duration, str(e))
 
-                # Signal task failure
                 update_task_progress(self.__class__.__name__, 'failed')
                 raise
 
@@ -184,7 +170,6 @@ class TargetDatabaseTask(BaseETLTask):
             with self.get_db_connection() as conn:
                 cursor = conn.cursor()
 
-                # Get current pipeline execution ID
                 cursor.execute("""
                     SELECT id FROM chacc_pipeline_history
                     WHERE status IN ('running', 'pending', 'interrupting')
@@ -195,42 +180,47 @@ class TargetDatabaseTask(BaseETLTask):
                 if pipeline_result:
                     pipeline_id = pipeline_result[0]
 
-                    # Determine task type from class hierarchy
-                    task_type = 'unknown'
-                    if hasattr(self, '__class__'):
-                        class_name = self.__class__.__name__
-                        # Check task type based on naming patterns or inheritance
-                        if 'ExtractLoad' in class_name or 'extract_load' in str(self.task_config.get('type', '')):
-                            task_type = 'extract_load'
-                        elif 'Procedure' in class_name or 'procedure' in str(self.task_config.get('type', '')):
-                            task_type = 'procedure'
-                        elif 'Schema' in class_name or 'schema' in str(self.task_config.get('type', '')):
-                            task_type = 'schema'
-                        elif 'Flattened' in class_name or 'flattened' in str(self.task_config.get('type', '')):
-                            task_type = 'flattened'
-                        elif 'Summary' in class_name or 'summary' in str(self.task_config.get('type', '')):
-                            task_type = 'summary'
+                    task_type = self.task_config.get('type', 'unknown') if hasattr(self, 'task_config') else 'unknown'
 
                     cursor.execute("""
-                        INSERT INTO pipeline_task_history
-                        (pipeline_history_id, task_name, task_type, status, start_time, end_time, duration_seconds, error_message, records_processed)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        pipeline_id,
-                        task_name,
-                        task_type,
-                        status,
-                        time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)) if start_time else None,
-                        time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)) if end_time else None,
-                        duration,
-                        error_message[:1000] if error_message else None,  # Truncate long error messages
-                        records_processed
-                    ))
+                        SELECT id FROM chacc_pipeline_task_history
+                        WHERE pipeline_history_id = %s AND task_name = %s
+                    """, (pipeline_id, task_name))
+                    existing_task = cursor.fetchone()
+
+                    if existing_task:
+                        cursor.execute("""
+                            UPDATE chacc_pipeline_task_history
+                            SET status = %s, end_time = %s, duration_seconds = %s, error_message = %s, records_processed = %s
+                            WHERE id = %s
+                        """, (
+                            status,
+                            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)) if end_time else None,
+                            duration,
+                            error_message[:1000] if error_message else None,
+                            records_processed,
+                            existing_task[0]
+                        ))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO chacc_pipeline_task_history
+                            (pipeline_history_id, task_name, task_type, status, start_time, end_time, duration_seconds, error_message, records_processed)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            pipeline_id,
+                            task_name,
+                            task_type,
+                            status,
+                            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time)) if start_time else None,
+                            time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(end_time)) if end_time else None,
+                            duration,
+                            error_message[:1000] if error_message else None,
+                            records_processed
+                        ))
 
                     conn.commit()
 
         except Exception as e:
-            # Don't fail the task if logging fails, just log the error
             self.logger.warning(f"Failed to log task execution: {e}")
 
 

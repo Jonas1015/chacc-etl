@@ -129,7 +129,7 @@ def run_pipeline_async(action, socketio, task_status):
                     elapsed = current_time - start_time
                     heartbeat_progress = {
                         'running': True,
-                        'progress': min(90, 10 + int(elapsed / 10)),
+                        # 'progress': min(90, 10 + int(elapsed / 10)),
                         'message': f"Pipeline running... ({int(elapsed)}s elapsed)",
                         'current_task': action.replace('_', ' ').title()
                     }

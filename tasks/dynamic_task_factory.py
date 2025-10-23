@@ -463,16 +463,14 @@ def create_dynamic_tasks():
         if hasattr(task_class, 'execute_task'):
             original_execute_task = task_class.execute_task
 
+
             def execute_task_with_interruption_check(self, original_method=original_execute_task):
                 """Wrap execute_task to check for interruptions periodically."""
                 import time
                 last_check = time.time()
 
-                if not hasattr(self, '_original_execute_task'):
-                    self._original_execute_task = original_method
-
                 try:
-                    return self._original_execute_task()
+                    return original_method(self)
                 except Exception as e:
                     interrupted, reason = self.check_interruption()
                     if interrupted:
@@ -482,7 +480,7 @@ def create_dynamic_tasks():
                                 cursor = conn.cursor()
                                 import json
                                 cursor.execute("""
-                                    UPDATE pipeline_history
+                                    UPDATE chacc_pipeline_history
                                     SET status = 'interrupted',
                                         result = JSON_SET(COALESCE(result, '{}'), '$.interruption_acknowledged', true)
                                     WHERE status = 'interrupting'
