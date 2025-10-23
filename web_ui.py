@@ -46,10 +46,10 @@ def index():
                 pipeline_type = current_progress.get('pipeline_type', 'unknown')
                 log_pipeline_execution(pipeline_type, pipeline_start_time, None, None, "Pipeline started", "pending")
 
-    from config.luigi_config import SCHEDULER_HOST, SCHEDULER_PORT
-    luigi_visualizer_url = f"{SCHEDULER_HOST}:{SCHEDULER_PORT}"
+        from config.luigi_config import SCHEDULER_HOST, SCHEDULER_PORT, SCHEDULER_PROTOCOL
+        luigi_visualizer_url = f"{SCHEDULER_PROTOCOL}://{SCHEDULER_HOST}:{SCHEDULER_PORT}"
 
-    return render_template("index.html", status="A pipeline is already running. Please wait for it to complete.", luigi_visualizer_url=luigi_visualizer_url)
+        return render_template("index.html", status="A pipeline is already running. Please wait for it to complete.", luigi_visualizer_url=luigi_visualizer_url)
 
     if request.method == 'POST':
         action = request.form.get('action')

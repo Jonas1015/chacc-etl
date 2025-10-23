@@ -18,6 +18,11 @@ from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
+from config.luigi_config import SCHEDULER_HOST, SCHEDULER_PORT, SCHEDULER_PROTOCOL
+
+
+luigi_visualizer_url = f"{SCHEDULER_PROTOCOL}://{SCHEDULER_HOST}{":",SCHEDULER_PORT if SCHEDULER_PORT else "" }"
+
 logger = logging.getLogger(__name__)
 
 class LuigiTaskManager:
@@ -25,7 +30,7 @@ class LuigiTaskManager:
     Centralized task manager for Luigi pipeline execution with enhanced control and monitoring.
     """
 
-    def __init__(self, scheduler_url: str = "http://localhost:8082",
+    def __init__(self, scheduler_url: str = luigi_visualizer_url,
                  max_concurrent_tasks: int = 3,
                  task_timeout: int = 3600):
         """
